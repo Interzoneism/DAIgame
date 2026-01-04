@@ -182,3 +182,52 @@ MVP is done when:
 If something is ambiguous:
 - Choose the simplest implementation that satisfies the ticket and keeps Testbed working.
 - Do not add optional features “because it might be needed later”.
+
+---
+
+## 12) Development Environment Setup
+
+### Prerequisites
+- **Godot 4.5+** installed with .NET support
+- **.NET SDK** (version specified in `global.json`)
+- **GODOT environment variable** must be set:
+  - macOS/Linux: Add to `.zshrc` or `.bashrc`: `export GODOT="/path/to/Godot"`
+  - Windows: Set system environment variable `GODOT` to Godot executable path
+
+### Building the Project
+```sh
+cd /path/to/DAIgame
+dotnet build
+```
+
+### Running the Game
+- **VSCode**: Use launch configuration "🕹 Debug Game"
+- **Command line**: `${GODOT}` (run Godot with project loaded)
+
+### Running Tests
+- **VSCode**: Use launch configuration "🧪 Debug Tests"
+- **Command line**: `${GODOT} --run-tests --quit-on-finish`
+
+### Project Entry Point
+- Main entry: `Main/Main.tscn` and `Main/Main.cs`
+- Main.cs handles test mode detection (GoDotTest integration)
+- In normal mode, switches to `scenes/Testbed.tscn`
+- **Do not modify Main.cs/Main.tscn** unless working on test infrastructure
+
+### Code Coverage
+```sh
+chmod +x ./coverage.sh
+./coverage.sh
+```
+
+### Debug Configurations (VSCode)
+- **🕹 Debug Game** - Run game normally
+- **🎭 Debug Current Scene** - Debug scene matching current .cs file name
+- **🧪 Debug Tests** - Run all tests
+- **🔬 Debug Current Test** - Run test matching current .cs file name
+
+### Folder Structure
+Follow the structure defined in section 5. Create folders as needed:
+- `scripts/Core/`, `scripts/Player/`, `scripts/Combat/`, `scripts/AI/`, `scripts/World/`, `scripts/DAI/`, `scripts/UI/`
+- `scenes/` (Testbed + reusable scenes)
+- `data/` (item definitions, recipes, loot tables - later)
