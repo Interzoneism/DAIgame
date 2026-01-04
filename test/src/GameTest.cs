@@ -2,33 +2,19 @@ namespace DAIgame;
 
 using System.Threading.Tasks;
 using Chickensoft.GoDotTest;
-using Chickensoft.GodotTestDriver;
-using Chickensoft.GodotTestDriver.Drivers;
 using Godot;
 using Shouldly;
 
 public class GameTest : TestClass
 {
-  private Game _game = default!;
-  private Fixture _fixture = default!;
-
   public GameTest(Node testScene) : base(testScene) { }
 
-  [SetupAll]
-  public async Task Setup()
-  {
-    _fixture = new Fixture(TestScene.GetTree());
-    _game = await _fixture.LoadAndAddScene<Game>();
-  }
-
-  [CleanupAll]
-  public void Cleanup() => _fixture.Cleanup();
-
   [Test]
-  public void TestButtonUpdatesCounter()
+  public void ProjectSetupTest()
   {
-    var buttonDriver = new ButtonDriver(() => _game.TestButton);
-    buttonDriver.ClickCenter();
-    _game.ButtonPresses.ShouldBe(1);
+    // Basic test to verify test infrastructure is working
+    // Replace with actual game tests as systems are implemented
+    var projectName = ProjectSettings.GetSetting("application/config/name").AsString();
+    projectName.ShouldBe("DAIgame");
   }
 }

@@ -10,8 +10,8 @@ using Chickensoft.GoDotTest;
 
 // This entry-point file is responsible for determining if we should run tests.
 //
-// If you want to edit your game's main entry-point, please see Game.tscn and
-// Game.cs instead.
+// If you want to edit your game, work on scenes/Testbed.tscn and scripts in the
+// scripts/ folder. Do not modify this file unless working on test infrastructure.
 
 public partial class Main : Node2D
 {
@@ -46,5 +46,5 @@ public partial class Main : Node2D
 #endif
 
   private void RunScene()
-    => GetTree().ChangeSceneToFile("res://src/Game.tscn");
+    => GetTree().ChangeSceneToFile("res://scenes/Testbed.tscn");
 }
