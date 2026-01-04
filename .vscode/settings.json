@@ -7,7 +7,8 @@
     },
     "editor.formatOnPaste": true,
     "editor.formatOnSave": true,
-    "editor.formatOnType": false
+    "editor.formatOnType": false,
+    "editor.defaultFormatter": "ms-dotnettools.csharp"
   },
   "emeraldwalk.runonsave": {
     "commands": [

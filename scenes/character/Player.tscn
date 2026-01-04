@@ -1,14 +1,14 @@
-[gd_scene load_steps=5 format=3 uid="uid://bx3d1r6cnb3o1"]
+[gd_scene load_steps=6 format=3 uid="uid://bx3d1r6cnb3o1"]
 
 [ext_resource type="SpriteFrames" uid="uid://2navlis0yapa" path="res://assets/spriteframes/sprF_player.tres" id="1_4geon"]
-[ext_resource type="Script" uid="uid://cduh7yj1y2lhd" path="res://scripts/Player/PlayerController.cs" id="2_player"]
+[ext_resource type="Script" path="res://scripts/Player/PlayerController.cs" id="2_player"]
+[ext_resource type="SpriteFrames" uid="uid://d1g8cuxwaskqi" path="res://assets/spriteframes/sprF_playerLegs.tres" id="3_cxfou"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_5ntua"]
 radius = 8.0
 height = 24.0
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_eq5ko"]
-radius = 10.0
 height = 28.0
 
 [node name="Player" type="CharacterBody2D"]
@@ -17,21 +17,20 @@ script = ExtResource("2_player")
 [node name="Collision" type="CollisionShape2D" parent="."]
 shape = SubResource("CapsuleShape2D_5ntua")
 
-[node name="Visual" type="Node2D" parent="."]
+[node name="Body" type="Node2D" parent="."]
 
-[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Visual"]
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Body"]
 sprite_frames = ExtResource("1_4geon")
-animation = &"walk_shotgun"
-frame = 3
-frame_progress = 0.46216694
+animation = &"walk"
 
-[node name="Shadow" type="Sprite2D" parent="Visual"]
+[node name="Shadow" type="Sprite2D" parent="Body"]
 
-[node name="Aim" type="Node2D" parent="."]
+[node name="Legs" type="Node2D" parent="."]
 
-[node name="WeaponPivot" type="Node2D" parent="Aim"]
-
-[node name="Muzzle" type="Marker2D" parent="Aim/WeaponPivot"]
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Legs"]
+z_index = -1
+sprite_frames = ExtResource("3_cxfou")
+animation = &"walk"
 
 [node name="Hurtbox" type="Area2D" parent="."]
 

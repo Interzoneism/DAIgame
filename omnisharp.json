@@ -7,7 +7,7 @@
   "FormattingOptions": {
     "enableEditorConfigSupport": true,
     "organizeImports": true,
-    "SeparateImportDirectiveGroups": true
+    "SeparateImportDirectiveGroups": false
   },
   "RenameOptions": {
     "renameInComments": true,
