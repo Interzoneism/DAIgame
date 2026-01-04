@@ -1,0 +1,33 @@
+[gd_scene load_steps=4 format=3 uid="uid://bx3d1r6cnb3o1"]
+
+[ext_resource type="SpriteFrames" uid="uid://2navlis0yapa" path="res://assets/spriteframes/sprF_player.tres" id="1_4geon"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_5ntua"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_eq5ko"]
+
+[node name="Player" type="CharacterBody2D"]
+
+[node name="Collision" type="CollisionShape2D" parent="."]
+shape = SubResource("CapsuleShape2D_5ntua")
+
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Visual"]
+sprite_frames = ExtResource("1_4geon")
+animation = &"walk_shotgun"
+frame = 3
+frame_progress = 0.46216694
+
+[node name="Shadow" type="Sprite2D" parent="Visual"]
+
+[node name="Aim" type="Node2D" parent="."]
+
+[node name="WeaponPivot" type="Node2D" parent="Aim"]
+
+[node name="Muzzle" type="Marker2D" parent="Aim/WeaponPivot"]
+
+[node name="Hurtbox" type="Area2D" parent="."]
+
+[node name="HurtboxShape" type="CollisionShape2D" parent="Hurtbox"]
+shape = SubResource("CapsuleShape2D_eq5ko")

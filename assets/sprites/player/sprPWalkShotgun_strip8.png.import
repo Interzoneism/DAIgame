@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://d43sw60ib1iq"
-path="res://.godot/imported/icon.png-487276ed1e3a0c39cad0279d744ee560.ctex"
+uid="uid://y7s8o28japph"
+path="res://.godot/imported/sprPWalkShotgun_strip8.png-a3f81974fc19727c29bebb7f0baaa815.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://icon.png"
-dest_files=["res://.godot/imported/icon.png-487276ed1e3a0c39cad0279d744ee560.ctex"]
+source_file="res://assets/sprites/player/sprPWalkShotgun_strip8.png"
+dest_files=["res://.godot/imported/sprPWalkShotgun_strip8.png-a3f81974fc19727c29bebb7f0baaa815.ctex"]
 
 [params]
 

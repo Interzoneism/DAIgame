@@ -1,0 +1,145 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		}
+	],
+	"settings": {
+		"csharp.debug.justMyCode": false,
+		"csharp.debug.suppressJITOptimizations": true,
+		"csharp.semanticHighlighting.enabled": true,
+		"dotnet.backgroundAnalysis.analyzerDiagnosticsScope": "fullSolution",
+		"dotnet.backgroundAnalysis.compilerDiagnosticsScope": "fullSolution",
+		"dotnet.completion.showCompletionItemsFromUnimportedNamespaces": true,
+		"dotnet.formatting.organizeImportsOnFormat": true,
+		"dotnet.preferCSharpExtension": true,
+		"dotnetAcquisitionExtension.enableTelemetry": false,
+		"editor.tokenColorCustomizations": {
+			"[*]": {
+				"textMateRules": [
+					{
+						"scope": "comment.documentation",
+						"settings": {
+							"foreground": "#0091ff"
+						}
+					},
+					{
+						"scope": "comment.documentation.attribute",
+						"settings": {
+							"foreground": "#8480ff"
+						}
+					},
+					{
+						"scope": "comment.documentation.cdata",
+						"settings": {
+							"foreground": "#0091ff"
+						}
+					},
+					{
+						"scope": "comment.documentation.delimiter",
+						"settings": {
+							"foreground": "#aa00ff"
+						}
+					},
+					{
+						"scope": "comment.documentation.name",
+						"settings": {
+							"foreground": "#ef0074"
+						}
+					}
+				]
+			},
+			"[*Dark*]": {
+				"textMateRules": [
+					{
+						"scope": "comment.documentation",
+						"settings": {
+							"foreground": "#608B4E"
+						}
+					},
+					{
+						"scope": "comment.documentation.attribute",
+						"settings": {
+							"foreground": "#C8C8C8"
+						}
+					},
+					{
+						"scope": "comment.documentation.cdata",
+						"settings": {
+							"foreground": "#E9D585"
+						}
+					},
+					{
+						"scope": "comment.documentation.delimiter",
+						"settings": {
+							"foreground": "#808080"
+						}
+					},
+					{
+						"scope": "comment.documentation.name",
+						"settings": {
+							"foreground": "#569CD6"
+						}
+					}
+				]
+			},
+			"[*Light*]": {
+				"textMateRules": [
+					{
+						"scope": "comment.documentation",
+						"settings": {
+							"foreground": "#008000"
+						}
+					},
+					{
+						"scope": "comment.documentation.attribute",
+						"settings": {
+							"foreground": "#282828"
+						}
+					},
+					{
+						"scope": "comment.documentation.cdata",
+						"settings": {
+							"foreground": "#808080"
+						}
+					},
+					{
+						"scope": "comment.documentation.delimiter",
+						"settings": {
+							"foreground": "#808080"
+						}
+					},
+					{
+						"scope": "comment.documentation.name",
+						"settings": {
+							"foreground": "#808080"
+						}
+					}
+				]
+			}
+		},
+		"explorer.fileNesting.expand": false,
+		"omnisharp.enableEditorConfigSupport": true,
+		"omnisharp.enableMsBuildLoadProjectsOnDemand": false,
+		"omnisharp.maxFindSymbolsItems": 3000,
+		"omnisharp.useModernNet": true,
+		"terminal.integrated.defaultProfile.windows": "Git Bash",
+		"terminal.integrated.profiles.windows": {
+			"Command Prompt": {
+				"icon": "terminal-cmd",
+				"path": [
+					"${env:windir}\\Sysnative\\cmd.exe",
+					"${env:windir}\\System32\\cmd.exe"
+				]
+			},
+			"Git Bash": {
+				"icon": "terminal",
+				"source": "Git Bash"
+			},
+			"PowerShell": {
+				"icon": "terminal-powershell",
+				"source": "PowerShell"
+			}
+		}
+	}
+}

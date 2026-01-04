@@ -1,0 +1,67 @@
+[gd_resource type="SpriteFrames" load_steps=10 format=3 uid="uid://2navlis0yapa"]
+
+[ext_resource type="Texture2D" uid="uid://y7s8o28japph" path="res://assets/sprites/player/sprPWalkShotgun_strip8.png" id="1_hhqdd"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_8seji"]
+atlas = ExtResource("1_hhqdd")
+region = Rect2(0, 0, 44, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_owr8d"]
+atlas = ExtResource("1_hhqdd")
+region = Rect2(44, 0, 44, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_kuhrp"]
+atlas = ExtResource("1_hhqdd")
+region = Rect2(88, 0, 44, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_far13"]
+atlas = ExtResource("1_hhqdd")
+region = Rect2(132, 0, 44, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_j42c1"]
+atlas = ExtResource("1_hhqdd")
+region = Rect2(176, 0, 44, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_j3tbh"]
+atlas = ExtResource("1_hhqdd")
+region = Rect2(220, 0, 44, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_17igy"]
+atlas = ExtResource("1_hhqdd")
+region = Rect2(264, 0, 44, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2m2cn"]
+atlas = ExtResource("1_hhqdd")
+region = Rect2(308, 0, 44, 32)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_8seji")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_owr8d")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_kuhrp")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_far13")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_j42c1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_j3tbh")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_17igy")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2m2cn")
+}],
+"loop": true,
+"name": &"walk_shotgun",
+"speed": 12.0
+}]
