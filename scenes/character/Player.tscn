@@ -21,7 +21,7 @@ shape = SubResource("CapsuleShape2D_5ntua")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Body"]
 sprite_frames = ExtResource("1_4geon")
-animation = &"walk"
+animation = &"attack_shotgun"
 
 [node name="Shadow" type="Sprite2D" parent="Body"]
 
