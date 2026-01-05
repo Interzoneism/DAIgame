@@ -18,13 +18,13 @@ public partial class PlayerController : CharacterBody2D
   /// Force applied backwards when firing.
   /// </summary>
   [Export]
-  public float KnockbackStrength { get; set; } = 80f;
+  public float KnockbackStrength { get; set; } = 100f;
 
   /// <summary>
   /// Rate at which knockback is damped per second.
   /// </summary>
   [Export]
-  public float KnockbackDamp { get; set; } = 10f;
+  public float KnockbackDamp { get; set; } = 350f;
 
   /// <summary>
   /// Duration the shotgun walk animation stays active after an attack.
@@ -41,6 +41,7 @@ public partial class PlayerController : CharacterBody2D
   private Vector2 _knockbackVelocity = Vector2.Zero;
   private float _walkShotgunTimer;
   private bool _attackPlaying;
+  private bool _isMoving;
 
   public override void _Ready()
   {
@@ -88,6 +89,8 @@ public partial class PlayerController : CharacterBody2D
   private void HandleMovement()
   {
     var inputDir = GetInputDirection();
+
+    _isMoving = inputDir.LengthSquared() > 0;
 
     // Normalize to prevent faster diagonal movement
     if (inputDir.LengthSquared() > 0)
@@ -146,6 +149,7 @@ public partial class PlayerController : CharacterBody2D
 
     _attackPlaying = true;
     _walkShotgunTimer = 0f;
+    _bodySprite.Stop();
     _bodySprite.Play("attack_shotgun");
   }
 
@@ -180,6 +184,16 @@ public partial class PlayerController : CharacterBody2D
     {
       _bodySprite.Play("walk");
     }
+
+    // Pause walk animation when not moving
+    if (!_isMoving && !_attackPlaying && (_bodySprite.Animation == "walk" || _bodySprite.Animation == "walk_shotgun"))
+    {
+      _bodySprite.Stop();
+    }
+    else if (_isMoving && !_attackPlaying)
+    {
+      _bodySprite.Play();
+    }
   }
 
   private void UpdateLegsFacing(Vector2 inputDir)
@@ -192,6 +206,19 @@ public partial class PlayerController : CharacterBody2D
     var dir = inputDir.LengthSquared() > 0 ? inputDir : _lastMoveDir;
     var snappedAngle = SnapToEightDirections(dir.Angle());
     _legsNode.Rotation = snappedAngle;
+
+    // Pause legs animation when not moving
+    if (_legsSprite is not null)
+    {
+      if (!_isMoving)
+      {
+        _legsSprite.Stop();
+      }
+      else
+      {
+        _legsSprite.Play();
+      }
+    }
   }
 
   private static float SnapToEightDirections(float angle)
@@ -202,7 +229,7 @@ public partial class PlayerController : CharacterBody2D
 
   private void ApplyKnockbackImpulse()
   {
-    _knockbackVelocity += -_aimDirection * KnockbackStrength;
+    _knockbackVelocity = -_aimDirection * KnockbackStrength;
   }
 
   private void ApplyKnockbackDamp(float delta)
