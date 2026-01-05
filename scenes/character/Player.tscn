@@ -1,8 +1,11 @@
-[gd_scene load_steps=6 format=3 uid="uid://bx3d1r6cnb3o1"]
+[gd_scene load_steps=9 format=3 uid="uid://bx3d1r6cnb3o1"]
 
 [ext_resource type="SpriteFrames" uid="uid://2navlis0yapa" path="res://assets/spriteframes/sprF_player.tres" id="1_4geon"]
 [ext_resource type="Script" path="res://scripts/Player/PlayerController.cs" id="2_player"]
 [ext_resource type="SpriteFrames" uid="uid://d1g8cuxwaskqi" path="res://assets/spriteframes/sprF_playerLegs.tres" id="3_cxfou"]
+[ext_resource type="Script" path="res://scripts/Combat/HitscanWeapon.cs" id="4_weapon"]
+[ext_resource type="PackedScene" uid="uid://c6pj8e7k4vqrh" path="res://scenes/effects/MissParticles.tscn" id="5_miss"]
+[ext_resource type="PackedScene" uid="uid://bkm3d7p2wqv8f" path="res://scenes/effects/BloodParticles.tscn" id="6_blood"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_5ntua"]
 radius = 8.0
@@ -36,3 +39,10 @@ animation = &"walk"
 
 [node name="HurtboxShape" type="CollisionShape2D" parent="Hurtbox"]
 shape = SubResource("CapsuleShape2D_eq5ko")
+
+[node name="HitscanWeapon" type="Node2D" parent="."]
+script = ExtResource("4_weapon")
+Range = 400.0
+Damage = 25.0
+MissParticlesScene = ExtResource("5_miss")
+BloodParticlesScene = ExtResource("6_blood")

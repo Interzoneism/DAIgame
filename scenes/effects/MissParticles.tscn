@@ -1,0 +1,29 @@
+[gd_scene load_steps=3 format=3 uid="uid://c6pj8e7k4vqrh"]
+
+[sub_resource type="Curve" id="Curve_1"]
+_data = [Vector2(0, 1), 0.0, 0.0, 0, 0, Vector2(1, 0), 0.0, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_1"]
+particle_flag_disable_z = true
+emission_shape = 1
+emission_sphere_radius = 4.0
+angle_min = 0.0
+angle_max = 360.0
+direction = Vector3(0, -1, 0)
+spread = 30.0
+initial_velocity_min = 40.0
+initial_velocity_max = 80.0
+gravity = Vector3(0, 98, 0)
+scale_min = 0.5
+scale_max = 1.5
+scale_curve = SubResource("Curve_1")
+color = Color(0.6, 0.6, 0.6, 1)
+
+[node name="MissParticles" type="GPUParticles2D"]
+emitting = false
+amount = 8
+process_material = SubResource("ParticleProcessMaterial_1")
+lifetime = 0.5
+one_shot = true
+explosiveness = 1.0

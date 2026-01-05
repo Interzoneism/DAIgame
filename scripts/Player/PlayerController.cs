@@ -1,5 +1,6 @@
 namespace DAIgame.Player;
 
+using DAIgame.Combat;
 using Godot;
 
 /// <summary>
@@ -47,6 +48,7 @@ public partial class PlayerController : CharacterBody2D
   private AnimatedSprite2D? _bodySprite;
   private Node2D? _legsNode;
   private AnimatedSprite2D? _legsSprite;
+  private HitscanWeapon? _weapon;
   private Vector2 _lastMoveDir = Vector2.Right;
   private Vector2 _aimDirection = Vector2.Right;
   private Vector2 _knockbackVelocity = Vector2.Zero;
@@ -65,6 +67,7 @@ public partial class PlayerController : CharacterBody2D
     _bodyNode = GetNodeOrNull<Node2D>("Body");
     _bodySprite = _bodyNode?.GetNodeOrNull<AnimatedSprite2D>("AnimatedSprite2D");
     _legsNode = GetNodeOrNull<Node2D>("Legs");
+    _weapon = GetNodeOrNull<HitscanWeapon>("HitscanWeapon");
     _legsSprite = _legsNode?.GetNodeOrNull<AnimatedSprite2D>("AnimatedSprite2D");
 
     if (_bodySprite is not null)
@@ -151,6 +154,12 @@ public partial class PlayerController : CharacterBody2D
     }
 
     StartAttackAnimation();
+
+    // Fire the hitscan weapon
+    if (_weapon is not null)
+    {
+      _weapon.Fire(GlobalPosition, _aimDirection);
+    }
     ApplyKnockbackImpulse();
   }
 
