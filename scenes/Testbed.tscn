@@ -1,8 +1,15 @@
-[gd_scene load_steps=2 format=3 uid="uid://dxu03onavnehe"]
+[gd_scene load_steps=3 format=3 uid="uid://dxu03onavnehe"]
 
 [ext_resource type="PackedScene" uid="uid://bx3d1r6cnb3o1" path="res://scenes/character/Player.tscn" id="1_player"]
+[ext_resource type="PackedScene" uid="uid://qn8rxdg5vug5" path="res://scenes/character/Zombie.tscn" id="2_zombie"]
 
 [node name="Testbed" type="Node2D"]
 
 [node name="Player" parent="." instance=ExtResource("1_player")]
 position = Vector2(320, 180)
+
+[node name="Zombie1" parent="." instance=ExtResource("2_zombie")]
+position = Vector2(500, 180)
+
+[node name="Zombie2" parent="." instance=ExtResource("2_zombie")]
+position = Vector2(150, 100)

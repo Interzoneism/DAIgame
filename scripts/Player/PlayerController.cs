@@ -32,6 +32,17 @@ public partial class PlayerController : CharacterBody2D
   [Export]
   public float WalkShotgunDuration { get; set; } = 2f;
 
+  /// <summary>
+  /// Maximum health of the player.
+  /// </summary>
+  [Export]
+  public float MaxHealth { get; set; } = 100f;
+
+  /// <summary>
+  /// Current health of the player.
+  /// </summary>
+  public float CurrentHealth { get; private set; }
+
   private Node2D? _bodyNode;
   private AnimatedSprite2D? _bodySprite;
   private Node2D? _legsNode;
@@ -47,6 +58,9 @@ public partial class PlayerController : CharacterBody2D
   {
     // Add to player group for easy lookup
     AddToGroup("player");
+    AddToGroup("damageable");
+
+    CurrentHealth = MaxHealth;
 
     _bodyNode = GetNodeOrNull<Node2D>("Body");
     _bodySprite = _bodyNode?.GetNodeOrNull<AnimatedSprite2D>("AnimatedSprite2D");
@@ -267,5 +281,27 @@ public partial class PlayerController : CharacterBody2D
     }
 
     return inputDir;
+  }
+
+  /// <summary>
+  /// Damage interface implementation.
+  /// </summary>
+  public void ApplyDamage(float amount, Vector2 fromPos, Vector2 hitPos, Vector2 hitNormal)
+  {
+    CurrentHealth -= amount;
+    GD.Print($"Player took {amount} damage! Health: {CurrentHealth}/{MaxHealth}");
+
+    if (CurrentHealth <= 0f)
+    {
+      Die();
+    }
+  }
+
+  private void Die()
+  {
+    GD.Print("Player died!");
+    // For now, just restart by resetting health
+    // Later this could trigger a death screen or respawn system
+    CurrentHealth = MaxHealth;
   }
 }
