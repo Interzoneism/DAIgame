@@ -184,5 +184,6 @@
       "icon": "terminal-powershell",
       "source": "PowerShell"
     }
-  }
+  },
+  "godotTools.editorPath.godot4": "c:\\Martin\\Godot\\Godot Projects\\Godot_v4.5.1-stable_mono_win64\\Godot_v4.5.1-stable_mono_win64.exe"
 }
