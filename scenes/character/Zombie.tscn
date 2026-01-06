@@ -15,7 +15,7 @@ MoveSpeed = 50.0
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 position = Vector2(1, 0)
-scale = Vector2(0.115, 0.115)
+scale = Vector2(0.1, 0.1)
 sprite_frames = ExtResource("2_frames")
 animation = &"idle"
 offset = Vector2(17.48, -8.3)

@@ -9,27 +9,27 @@
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_5ntua"]
 radius = 8.0
-height = 24.0
+height = 24.999998
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_eq5ko"]
-height = 28.0
+radius = 4.7393365
+height = 29.19708
 
 [node name="Player" type="CharacterBody2D"]
 z_index = 5
 collision_layer = 2
-collision_mask = 1
 script = ExtResource("2_player")
 
 [node name="Collision" type="CollisionShape2D" parent="."]
-position = Vector2(-6.955, 0)
-scale = Vector2(1.255, 0.8)
+position = Vector2(-1.52, 0)
+scale = Vector2(0.71, 0.84)
 shape = SubResource("CapsuleShape2D_5ntua")
 
 [node name="Body" type="Node2D" parent="."]
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Body"]
 sprite_frames = ExtResource("1_4geon")
-animation = &"attack_shotgun"
+animation = &"walk"
 
 [node name="Shadow" type="Sprite2D" parent="Body"]
 
@@ -43,7 +43,7 @@ animation = &"walk"
 [node name="Hurtbox" type="Area2D" parent="."]
 
 [node name="HurtboxShape" type="CollisionShape2D" parent="Hurtbox"]
-position = Vector2(-6.265, 0)
+position = Vector2(-2, 0)
 scale = Vector2(1.055, 0.685)
 shape = SubResource("CapsuleShape2D_eq5ko")
 
