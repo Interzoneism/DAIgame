@@ -157,6 +157,7 @@ Every delivery must include:
 - Avoid “global singletons everywhere”. Use GameManager only for global state.
 - Add comments only when behavior is non-obvious.
 - Do not add .md instructions files to test or how to use the new feature.
+- If the user says something is not working, when implementing the fix add debug logs that would help you diagnose a potential future issue
 
 ---
 
