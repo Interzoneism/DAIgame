@@ -117,17 +117,17 @@ public partial class HitscanWeapon : Node2D
 
     private static Node? FindDamageableNode(Node node)
     {
-        // Check if the node itself is damageable
-        if (node.IsInGroup("damageable"))
+        // Check if the node itself is damageable (implements IDamageable)
+        if (node is IDamageable)
         {
             return node;
         }
 
-        // Check parent nodes
+        // Check parent nodes for IDamageable implementation
         var parent = node.GetParent();
         while (parent is not null)
         {
-            if (parent.IsInGroup("damageable"))
+            if (parent is IDamageable)
             {
                 return parent;
             }
