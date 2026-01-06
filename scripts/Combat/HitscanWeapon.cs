@@ -1,5 +1,6 @@
 namespace DAIgame.Combat;
 
+using DAIgame.Core;
 using Godot;
 
 /// <summary>
@@ -69,10 +70,10 @@ public partial class HitscanWeapon : Node2D
         if (collider is Node node)
         {
             var damageable = FindDamageableNode(node);
-            if (damageable is not null && damageable.HasMethod("ApplyDamage"))
+            if (damageable is IDamageable damageableTarget)
             {
                 var fromPos = GlobalPosition;
-                damageable.Call("ApplyDamage", Damage, fromPos, hitPosition, hitNormal);
+                damageableTarget.ApplyDamage(Damage, fromPos, hitPosition, hitNormal);
             }
         }
     }

@@ -1,12 +1,13 @@
 namespace DAIgame.AI;
 
+using DAIgame.Core;
 using Godot;
 
 /// <summary>
 /// Simple zombie AI that idles, chases the player when within detection range,
 /// and attacks when in melee range.
 /// </summary>
-public partial class ZombieController : CharacterBody2D
+public partial class ZombieController : CharacterBody2D, IDamageable
 {
 	/// <summary>
 	/// Zombie movement speed in pixels per second.
@@ -43,6 +44,12 @@ public partial class ZombieController : CharacterBody2D
 	/// </summary>
 	[Export]
 	public float MaxHealth { get; set; } = 50f;
+
+	/// <summary>
+	/// Texture to display for the zombie corpse when it dies.
+	/// </summary>
+	[Export]
+	public Texture2D? CorpseTexture { get; set; }
 
 	private AnimatedSprite2D? _sprite;
 	private Node2D? _player;
@@ -172,14 +179,14 @@ public partial class ZombieController : CharacterBody2D
 			return;
 		}
 
-		// Try to damage the player
-		if (_player.HasMethod("ApplyDamage"))
+		// Try to damage the player using the IDamageable interface
+		if (_player is IDamageable damageable)
 		{
 			var hitPos = _player.GlobalPosition;
 			var fromPos = GlobalPosition;
 			var hitNormal = (fromPos - hitPos).Normalized();
 
-			_player.Call("ApplyDamage", AttackDamage, fromPos, hitPos, hitNormal);
+			damageable.ApplyDamage(AttackDamage, fromPos, hitPos, hitNormal);
 		}
 	}
 
@@ -254,5 +261,26 @@ public partial class ZombieController : CharacterBody2D
 		}
 	}
 
-	private void Die() => QueueFree();
+	private void Die()
+	{
+		SpawnCorpse();
+		QueueFree();
+	}
+
+	private void SpawnCorpse()
+	{
+		if (CorpseTexture is null)
+		{
+			return;
+		}
+
+		var corpse = new Combat.ZombieCorpse
+		{
+			Texture = CorpseTexture,
+			GlobalPosition = GlobalPosition,
+			Rotation = Rotation
+		};
+
+		GetTree().Root.AddChild(corpse);
+	}
 }
