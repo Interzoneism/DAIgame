@@ -29,11 +29,11 @@ public partial class GameManager : Node
     /// Attempts to get the GameManager instance.
     /// Use this for optional operations that can gracefully handle a missing GameManager.
     /// </summary>
-    /// <param name="instance">The GameManager instance if available.</param>
+    /// <param name="instance">The GameManager instance if available, or null otherwise.</param>
     /// <returns>True if the instance is available, false otherwise.</returns>
-    public static bool TryGetInstance(out GameManager instance)
+    public static bool TryGetInstance(out GameManager? instance)
     {
-        instance = Instance!;
+        instance = Instance;
         return Instance is not null;
     }
 
