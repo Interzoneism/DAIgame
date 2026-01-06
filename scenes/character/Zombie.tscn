@@ -4,6 +4,8 @@
 [ext_resource type="SpriteFrames" uid="uid://cb2bf5j28w032" path="res://assets/spriteframes/sprF_zombie.tres" id="2_frames"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_nip5i"]
+radius = 7.8125
+height = 25.0
 
 [node name="Zombie" type="CharacterBody2D"]
 z_index = 4
@@ -11,17 +13,18 @@ collision_layer = 2
 script = ExtResource("1_zombie")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+position = Vector2(1, 0)
 scale = Vector2(0.115, 0.115)
 sprite_frames = ExtResource("2_frames")
 animation = &"idle"
+offset = Vector2(17.48, -8.3)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-position = Vector2(-3.42, 0.96)
 scale = Vector2(0.64, 0.64)
 shape = SubResource("CapsuleShape2D_nip5i")
 
 [node name="NavigationAgent2D" type="NavigationAgent2D" parent="."]
-path_desired_distance = 4.0
+path_desired_distance = 2.0
 target_desired_distance = 4.0
 path_max_distance = 50.0
 avoidance_enabled = true
