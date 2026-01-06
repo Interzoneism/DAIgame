@@ -81,9 +81,11 @@ public partial class NavigationBuilder : NavigationRegion2D
 		var bounds = CalculateBounds(usedCells);
 
 		// Create the navigation polygon
+		// Agent radius should match or exceed zombie collision size (~10 pixels effective)
+		// to prevent pathfinding through gaps zombies can't fit through
 		var navPoly = new NavigationPolygon
 		{
-			AgentRadius = 4f // Half tile size for tight navigation
+			AgentRadius = 10f
 		};
 
 		// Create outer boundary (traversable area)

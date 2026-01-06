@@ -25,7 +25,9 @@ scale = Vector2(0.64, 0.64)
 shape = SubResource("CapsuleShape2D_nip5i")
 
 [node name="NavigationAgent2D" type="NavigationAgent2D" parent="."]
-path_postprocessing = 2
+path_desired_distance = 8.0
+target_desired_distance = 20.0
 avoidance_enabled = true
-radius = 20.0
+neighbor_distance = 100.0
+max_neighbors = 5
 debug_enabled = true
