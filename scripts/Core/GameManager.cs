@@ -1,5 +1,6 @@
 namespace DAIgame.Core;
 
+using System;
 using Godot;
 
 /// <summary>
@@ -9,9 +10,32 @@ using Godot;
 public partial class GameManager : Node
 {
     /// <summary>
-    /// Singleton instance.
+    /// Singleton instance. May be null if not initialized or during testing.
     /// </summary>
     public static GameManager? Instance { get; private set; }
+
+    /// <summary>
+    /// Gets the GameManager instance, throwing if not available.
+    /// Use this when the GameManager is required for the operation.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Thrown when GameManager is not initialized.</exception>
+    public static GameManager GetRequiredInstance()
+    {
+        return Instance ?? throw new InvalidOperationException(
+            "GameManager is not initialized. Ensure the GameManager node is in the scene tree.");
+    }
+
+    /// <summary>
+    /// Attempts to get the GameManager instance.
+    /// Use this for optional operations that can gracefully handle a missing GameManager.
+    /// </summary>
+    /// <param name="instance">The GameManager instance if available, or null otherwise.</param>
+    /// <returns>True if the instance is available, false otherwise.</returns>
+    public static bool TryGetInstance(out GameManager? instance)
+    {
+        instance = Instance;
+        return Instance is not null;
+    }
 
     #region Slow Motion
 

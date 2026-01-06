@@ -1,12 +1,13 @@
 namespace DAIgame.AI;
 using DAIgame.Combat;
+using DAIgame.Core;
 using Godot;
 
 /// <summary>
 /// Simple zombie AI that idles, chases the player when within detection range,
 /// and attacks when in melee range.
 /// </summary>
-public partial class ZombieController : CharacterBody2D
+public partial class ZombieController : CharacterBody2D, IDamageable
 {
     /// <summary>
     /// Zombie movement speed in pixels per second.
@@ -220,14 +221,14 @@ public partial class ZombieController : CharacterBody2D
             return;
         }
 
-        // Try to damage the player
-        if (_player.HasMethod("ApplyDamage"))
+        // Try to damage the player through the interface
+        if (_player is IDamageable damageable)
         {
             var hitPos = _player.GlobalPosition;
             var fromPos = GlobalPosition;
             var hitNormal = (fromPos - hitPos).Normalized();
 
-            _player.Call("ApplyDamage", AttackDamage, fromPos, hitPos, hitNormal);
+            damageable.ApplyDamage(AttackDamage, fromPos, hitPos, hitNormal);
         }
     }
 
