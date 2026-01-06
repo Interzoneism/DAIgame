@@ -28,7 +28,7 @@
   "dotnet.enableXamlTools": false,
   "dotnet.formatting.organizeImportsOnFormat": true,
   "dotnet.preferCSharpExtension": true,
-  // "dotnet.server.useOmnisharp": true, // You decide
+  "dotnet.server.useOmnisharp": true,
   "dotnetAcquisitionExtension.enableTelemetry": false,
   "editor.semanticHighlighting.enabled": true,
   // C# doc comment colorization gets lost with semantic highlighting, but we
@@ -166,6 +166,7 @@
   "omnisharp.enableMsBuildLoadProjectsOnDemand": false,
   "omnisharp.maxFindSymbolsItems": 3000,
   "omnisharp.useModernNet": true,
+  "omnisharp.organizeImportsOnFormat": true,
   // Remove these if you're happy with your terminal profiles.
   "terminal.integrated.defaultProfile.windows": "Git Bash",
   "terminal.integrated.profiles.windows": {

@@ -7,6 +7,10 @@ using Godot;
 /// </summary>
 public partial class ZombieCorpse : Sprite2D
 {
-    // Corpses are just visual - no logic needed for now
-    // Could add decay timer or interaction later if needed
+	public override void _Ready()
+	{
+		base._Ready();
+		Centered = true;
+		ZIndex = -10; // keeps the corpse below active characters
+	}
 }

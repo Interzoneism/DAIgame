@@ -18,6 +18,8 @@ height = 28.0
 script = ExtResource("2_player")
 
 [node name="Collision" type="CollisionShape2D" parent="."]
+position = Vector2(-6.955, 0)
+scale = Vector2(1.255, 0.8)
 shape = SubResource("CapsuleShape2D_5ntua")
 
 [node name="Body" type="Node2D" parent="."]
@@ -38,11 +40,11 @@ animation = &"walk"
 [node name="Hurtbox" type="Area2D" parent="."]
 
 [node name="HurtboxShape" type="CollisionShape2D" parent="Hurtbox"]
+position = Vector2(-6.265, 0)
+scale = Vector2(1.055, 0.685)
 shape = SubResource("CapsuleShape2D_eq5ko")
 
 [node name="HitscanWeapon" type="Node2D" parent="."]
 script = ExtResource("4_weapon")
-Range = 400.0
-Damage = 25.0
 MissParticlesScene = ExtResource("5_miss")
 BloodParticlesScene = ExtResource("6_blood")

@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/Combat/ZombieCorpse.cs" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/enemy/zombie-dead.png" id="2"]
+
+[node name="ZombieCorpse" type="Sprite2D"]
+script = ExtResource("1")
+texture = ExtResource("2")
+scale = Vector2(0.115, 0.115)

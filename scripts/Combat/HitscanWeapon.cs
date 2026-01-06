@@ -38,7 +38,7 @@ public partial class HitscanWeapon : Node2D
     public void Fire(Vector2 origin, Vector2 direction)
     {
         var space = GetWorld2D().DirectSpaceState;
-        var endPoint = origin + direction * Range;
+        var endPoint = origin + (direction * Range);
 
         var query = PhysicsRayQueryParameters2D.Create(origin, endPoint);
         query.CollideWithAreas = false;
@@ -77,10 +77,7 @@ public partial class HitscanWeapon : Node2D
         }
     }
 
-    private void HandleMiss(Vector2 missPosition)
-    {
-        SpawnMissParticles(missPosition);
-    }
+    private void HandleMiss(Vector2 missPosition) => SpawnMissParticles(missPosition);
 
     private void SpawnBloodParticles(Vector2 position, Vector2 normal)
     {
@@ -97,7 +94,7 @@ public partial class HitscanWeapon : Node2D
         particles.Rotation = normal.Angle();
 
         particles.Emitting = true;
-        particles.Finished += () => particles.QueueFree();
+        particles.Finished += particles.QueueFree;
     }
 
     private void SpawnMissParticles(Vector2 position)
@@ -111,7 +108,7 @@ public partial class HitscanWeapon : Node2D
         GetTree().Root.AddChild(particles);
         particles.GlobalPosition = position;
         particles.Emitting = true;
-        particles.Finished += () => particles.QueueFree();
+        particles.Finished += particles.QueueFree;
     }
 
     private static Node? FindDamageableNode(Node node)

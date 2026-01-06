@@ -1,15 +1,33 @@
-[gd_scene load_steps=3 format=3 uid="uid://dxu03onavnehe"]
+[gd_scene load_steps=7 format=3 uid="uid://dxu03onavnehe"]
 
 [ext_resource type="PackedScene" uid="uid://bx3d1r6cnb3o1" path="res://scenes/character/Player.tscn" id="1_player"]
 [ext_resource type="PackedScene" uid="uid://qn8rxdg5vug5" path="res://scenes/character/Zombie.tscn" id="2_zombie"]
+[ext_resource type="Script" path="res://scripts/Core/TestbedController.cs" id="3_testbed"]
+[ext_resource type="Script" path="res://scripts/World/DayNightController.cs" id="4_daynight"]
+[ext_resource type="Script" path="res://scripts/UI/GameHUD.cs" id="5_hud"]
+[ext_resource type="Script" path="res://scripts/Core/GameManager.cs" id="6_gamemanager"]
 
 [node name="Testbed" type="Node2D"]
+script = ExtResource("3_testbed")
+ZombieScene = ExtResource("2_zombie")
+
+[node name="GameManager" type="Node" parent="."]
+script = ExtResource("6_gamemanager")
+
+[node name="DayNightController" type="CanvasModulate" parent="."]
+script = ExtResource("4_daynight")
+
+[node name="GameHUD" type="CanvasLayer" parent="."]
+script = ExtResource("5_hud")
 
 [node name="Player" parent="." instance=ExtResource("1_player")]
 position = Vector2(320, 180)
+KnockbackStrength = 50.0
 
 [node name="Zombie1" parent="." instance=ExtResource("2_zombie")]
 position = Vector2(500, 180)
 
 [node name="Zombie2" parent="." instance=ExtResource("2_zombie")]
 position = Vector2(150, 100)
+
+[node name="TileMapLayer" type="TileMapLayer" parent="."]
