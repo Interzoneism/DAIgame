@@ -11,6 +11,6 @@ public partial class ZombieCorpse : Sprite2D
 	{
 		base._Ready();
 		Centered = true;
-		ZIndex = -10; // keeps the corpse below active characters
+		ZIndex = 3; // keeps the corpse below active characters
 	}
 }

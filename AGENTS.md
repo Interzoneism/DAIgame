@@ -143,10 +143,7 @@ Every delivery must include:
 1) **What changed**
 - List files modified/added.
 
-2) **How to test in Testbed**
-- 3–8 bullet steps.
-
-3) **No collateral refactors**
+2) **No collateral refactors**
 - Don’t rename or reformat unrelated files.
 - Don’t introduce new architecture.
 
@@ -159,6 +156,7 @@ Every delivery must include:
 - Avoid deep inheritance. Use composition and groups.
 - Avoid “global singletons everywhere”. Use GameManager only for global state.
 - Add comments only when behavior is non-obvious.
+- Do not add .md instructions files to test or how to use the new feature.
 
 ---
 
@@ -199,6 +197,9 @@ If something is ambiguous:
 cd /path/to/DAIgame
 dotnet build
 ```
+
+### Build Warnings
+- Ignore build warnings about style formatting
 
 ### Running the Game
 - **VSCode**: Use launch configuration "🕹 Debug Game"

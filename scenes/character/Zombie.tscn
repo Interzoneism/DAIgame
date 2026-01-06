@@ -6,6 +6,8 @@
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_nip5i"]
 
 [node name="Zombie" type="CharacterBody2D"]
+z_index = 4
+collision_layer = 2
 script = ExtResource("1_zombie")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
@@ -17,3 +19,10 @@ animation = &"idle"
 position = Vector2(-3.42, 0.96)
 scale = Vector2(0.64, 0.64)
 shape = SubResource("CapsuleShape2D_nip5i")
+
+[node name="NavigationAgent2D" type="NavigationAgent2D" parent="."]
+path_desired_distance = 4.0
+target_desired_distance = 4.0
+path_max_distance = 50.0
+avoidance_enabled = true
+debug_enabled = true

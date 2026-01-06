@@ -5,405 +5,444 @@ using Godot;
 
 /// <summary>
 /// Simple zombie AI that idles, chases the player when within detection range,
-/// and attacks when in melee range.
+/// and attacks when in melee range. Uses NavigationAgent2D for pathfinding.
 /// </summary>
 public partial class ZombieController : CharacterBody2D, IDamageable
 {
-    /// <summary>
-    /// Zombie movement speed in pixels per second.
-    /// </summary>
-    [Export]
-    public float MoveSpeed { get; set; } = 100f;
+	/// <summary>
+	/// Zombie movement speed in pixels per second.
+	/// </summary>
+	[Export]
+	public float MoveSpeed { get; set; } = 100f;
 
-    /// <summary>
-    /// Distance at which the zombie starts chasing the player.
-    /// </summary>
-    [Export]
-    public float DetectionRange { get; set; } = 200f;
+	/// <summary>
+	/// How often to recalculate path (in seconds). Lower = more responsive but more CPU.
+	/// </summary>
+	[Export]
+	public float PathUpdateInterval { get; set; } = 0.25f;
 
-    /// <summary>
-    /// Distance at which the zombie can attack the player.
-    /// </summary>
-    [Export]
-    public float AttackRange { get; set; } = 30f;
+	/// <summary>
+	/// Distance at which the zombie starts chasing the player.
+	/// </summary>
+	[Export]
+	public float DetectionRange { get; set; } = 200f;
 
-    /// <summary>
-    /// Time between attacks in seconds.
-    /// </summary>
-    [Export]
-    public float AttackCooldown { get; set; } = 1.5f;
+	/// <summary>
+	/// Distance at which the zombie can attack the player.
+	/// </summary>
+	[Export]
+	public float AttackRange { get; set; } = 30f;
 
-    /// <summary>
-    /// Damage dealt to player per attack.
-    /// </summary>
-    [Export]
-    public float AttackDamage { get; set; } = 10f;
+	/// <summary>
+	/// Time between attacks in seconds.
+	/// </summary>
+	[Export]
+	public float AttackCooldown { get; set; } = 1.5f;
 
-    /// <summary>
-    /// Maximum health of the zombie.
-    /// </summary>
-    [Export]
-    public float MaxHealth { get; set; } = 50f;
+	/// <summary>
+	/// Damage dealt to player per attack.
+	/// </summary>
+	[Export]
+	public float AttackDamage { get; set; } = 10f;
 
-    /// <summary>
-    /// Knockback force applied when hit.
-    /// </summary>
-    [Export]
-    public float KnockbackStrength { get; set; } = 150f;
+	/// <summary>
+	/// Maximum health of the zombie.
+	/// </summary>
+	[Export]
+	public float MaxHealth { get; set; } = 50f;
 
-    /// <summary>
-    /// Rate at which knockback is damped per second.
-    /// </summary>
-    [Export]
-    public float KnockbackDamp { get; set; } = 400f;
+	/// <summary>
+	/// Knockback force applied when hit.
+	/// </summary>
+	[Export]
+	public float KnockbackStrength { get; set; } = 150f;
 
-    /// <summary>
-    /// Duration of the hit flash effect in seconds.
-    /// </summary>
-    [Export]
-    public float HitFlashDuration { get; set; } = 0.1f;
+	/// <summary>
+	/// Rate at which knockback is damped per second.
+	/// </summary>
+	[Export]
+	public float KnockbackDamp { get; set; } = 400f;
 
-    private AnimatedSprite2D? _sprite;
-    private Node2D? _player;
-    private float _attackCooldownTimer;
-    private float _currentHealth;
-    private ZombieState _state = ZombieState.Idle;
-    private bool _hasSeenPlayer;
-    private Vector2 _knockbackVelocity = Vector2.Zero;
-    private float _hitFlashTimer;
-    private Vector2 _lastDamageDirection = Vector2.Down;
-    private static PackedScene? s_corpseScene;
-    private static PackedScene? s_bloodSpatterScene;
+	/// <summary>
+	/// Duration of the hit flash effect in seconds.
+	/// </summary>
+	[Export]
+	public float HitFlashDuration { get; set; } = 0.1f;
 
-    private enum ZombieState
-    {
-        Idle,
-        Chasing,
-        Attacking
-    }
+	private AnimatedSprite2D? _sprite;
+	private NavigationAgent2D? _navAgent;
+	private Node2D? _player;
+	private float _attackCooldownTimer;
+	private float _currentHealth;
+	private ZombieState _state = ZombieState.Idle;
+	private bool _hasSeenPlayer;
+	private Vector2 _knockbackVelocity = Vector2.Zero;
+	private float _hitFlashTimer;
+	private Vector2 _lastDamageDirection = Vector2.Down;
+	private float _pathUpdateTimer;
+	private static PackedScene? s_corpseScene;
+	private static PackedScene? s_bloodSpatterScene;
 
-    public override void _Ready()
-    {
-        AddToGroup("enemies");
-        AddToGroup("damageable");
+	private enum ZombieState
+	{
+		Idle,
+		Chasing,
+		Attacking
+	}
 
-        _sprite = GetNodeOrNull<AnimatedSprite2D>("AnimatedSprite2D");
-        _currentHealth = MaxHealth;
+	public override void _Ready()
+	{
+		AddToGroup("enemies");
+		AddToGroup("damageable");
 
-        if (_sprite is not null)
-        {
-            _sprite.AnimationFinished += OnAnimationFinished;
-            _sprite.Play("idle");
-        }
+		_sprite = GetNodeOrNull<AnimatedSprite2D>("AnimatedSprite2D");
+		_navAgent = GetNodeOrNull<NavigationAgent2D>("NavigationAgent2D");
+		_currentHealth = MaxHealth;
 
-        s_corpseScene ??= GD.Load<PackedScene>("res://scripts/Combat/ZombieCorpse.tscn");
+		if (_sprite is not null)
+		{
+			_sprite.AnimationFinished += OnAnimationFinished;
+			_sprite.Play("idle");
+		}
 
-        s_bloodSpatterScene ??= GD.Load<PackedScene>("res://scenes/effects/BloodSpatter.tscn");
-    }
+		s_corpseScene ??= GD.Load<PackedScene>("res://scripts/Combat/ZombieCorpse.tscn");
 
-    public override void _PhysicsProcess(double delta)
-    {
-        UpdatePlayerReference();
+		s_bloodSpatterScene ??= GD.Load<PackedScene>("res://scenes/effects/BloodSpatter.tscn");
+	}
 
-        if (_player is null || !IsInstanceValid(_player))
-        {
-            SetState(ZombieState.Idle);
-            return;
-        }
+	public override void _PhysicsProcess(double delta)
+	{
+		UpdatePlayerReference();
 
-        var distanceToPlayer = GlobalPosition.DistanceTo(_player.GlobalPosition);
+		if (_player is null || !IsInstanceValid(_player))
+		{
+			SetState(ZombieState.Idle);
+			return;
+		}
 
-        // Once player is detected, zombie remembers them forever (persistent aggro)
-        if (!_hasSeenPlayer && distanceToPlayer <= DetectionRange)
-        {
-            _hasSeenPlayer = true;
-        }
+		var distanceToPlayer = GlobalPosition.DistanceTo(_player.GlobalPosition);
 
-        // State transitions - keep chasing once player has been seen
-        if (_hasSeenPlayer)
-        {
-            if (distanceToPlayer <= AttackRange)
-            {
-                SetState(ZombieState.Attacking);
-            }
-            else
-            {
-                SetState(ZombieState.Chasing);
-            }
-        }
-        else
-        {
-            SetState(ZombieState.Idle);
-        }
+		// Once player is detected, zombie remembers them forever (persistent aggro)
+		if (!_hasSeenPlayer && distanceToPlayer <= DetectionRange)
+		{
+			_hasSeenPlayer = true;
+		}
 
-        // State behavior
-        var deltaF = (float)delta;
-        switch (_state)
-        {
-            case ZombieState.Idle:
-                HandleIdle(deltaF);
-                break;
-            case ZombieState.Chasing:
-                HandleChasing(deltaF);
-                break;
-            case ZombieState.Attacking:
-                HandleAttacking(deltaF);
-                break;
-        }
-    }
+		// State transitions - keep chasing once player has been seen
+		if (_hasSeenPlayer)
+		{
+			if (distanceToPlayer <= AttackRange)
+			{
+				SetState(ZombieState.Attacking);
+			}
+			else
+			{
+				SetState(ZombieState.Chasing);
+			}
+		}
+		else
+		{
+			SetState(ZombieState.Idle);
+		}
 
-    private void HandleIdle(float delta)
-    {
-        ApplyKnockbackDamp(delta);
-        UpdateHitFlash(delta);
-        Velocity = _knockbackVelocity;
-        MoveAndSlide();
-    }
+		// State behavior
+		var deltaF = (float)delta;
+		switch (_state)
+		{
+			case ZombieState.Idle:
+				HandleIdle(deltaF);
+				break;
+			case ZombieState.Chasing:
+				HandleChasing(deltaF);
+				break;
+			case ZombieState.Attacking:
+				HandleAttacking(deltaF);
+				break;
+		}
+	}
 
-    private void HandleChasing(float delta)
-    {
-        ApplyKnockbackDamp(delta);
-        UpdateHitFlash(delta);
+	private void HandleIdle(float delta)
+	{
+		ApplyKnockbackDamp(delta);
+		UpdateHitFlash(delta);
+		Velocity = _knockbackVelocity;
+		MoveAndSlide();
+	}
 
-        if (_player is null)
-        {
-            Velocity = _knockbackVelocity;
-            MoveAndSlide();
-            return;
-        }
+	private void HandleChasing(float delta)
+	{
+		ApplyKnockbackDamp(delta);
+		UpdateHitFlash(delta);
 
-        var direction = (_player.GlobalPosition - GlobalPosition).Normalized();
-        Velocity = (direction * MoveSpeed) + _knockbackVelocity;
-        MoveAndSlide();
+		if (_player is null)
+		{
+			Velocity = _knockbackVelocity;
+			MoveAndSlide();
+			return;
+		}
 
-        // Face the player
-        var angle = direction.Angle();
-        Rotation = angle;
-    }
+		Vector2 direction;
 
-    private void HandleAttacking(float delta)
-    {
-        ApplyKnockbackDamp(delta);
-        UpdateHitFlash(delta);
+		// Use navigation agent if available, otherwise direct movement
+		if (_navAgent is not null)
+		{
+			// Periodically update path target for performance
+			_pathUpdateTimer -= delta;
+			if (_pathUpdateTimer <= 0f)
+			{
+				_navAgent.TargetPosition = _player.GlobalPosition;
+				_pathUpdateTimer = PathUpdateInterval;
+			}
 
-        // Stop moving during attack (but allow knockback)
-        Velocity = _knockbackVelocity;
-        MoveAndSlide();
+			if (!_navAgent.IsNavigationFinished())
+			{
+				var nextPos = _navAgent.GetNextPathPosition();
+				direction = (nextPos - GlobalPosition).Normalized();
+			}
+			else
+			{
+				direction = (_player.GlobalPosition - GlobalPosition).Normalized();
+			}
+		}
+		else
+		{
+			// Fallback to direct movement if no nav agent
+			direction = (_player.GlobalPosition - GlobalPosition).Normalized();
+		}
 
-        if (_player is null)
-        {
-            return;
-        }
+		Velocity = (direction * MoveSpeed) + _knockbackVelocity;
+		MoveAndSlide();
 
-        // Face the player
-        var direction = _player.GlobalPosition - GlobalPosition;
-        if (direction != Vector2.Zero)
-        {
-            Rotation = direction.Angle();
-        }
+		// Face movement direction
+		if (direction != Vector2.Zero)
+		{
+			Rotation = direction.Angle();
+		}
+	}
 
-        // Handle attack cooldown
-        if (_attackCooldownTimer > 0f)
-        {
-            _attackCooldownTimer -= delta;
-        }
-        else
-        {
-            PerformAttack();
-            _attackCooldownTimer = AttackCooldown;
-        }
-    }
+	private void HandleAttacking(float delta)
+	{
+		ApplyKnockbackDamp(delta);
+		UpdateHitFlash(delta);
 
-    private void PerformAttack()
-    {
-        if (_player is null)
-        {
-            return;
-        }
+		// Stop moving during attack (but allow knockback)
+		Velocity = _knockbackVelocity;
+		MoveAndSlide();
 
-        // Try to damage the player through the interface
-        if (_player is IDamageable damageable)
-        {
-            var hitPos = _player.GlobalPosition;
-            var fromPos = GlobalPosition;
-            var hitNormal = (fromPos - hitPos).Normalized();
+		if (_player is null)
+		{
+			return;
+		}
 
-            damageable.ApplyDamage(AttackDamage, fromPos, hitPos, hitNormal);
-        }
-    }
+		// Face the player
+		var direction = _player.GlobalPosition - GlobalPosition;
+		if (direction != Vector2.Zero)
+		{
+			Rotation = direction.Angle();
+		}
 
-    private void SetState(ZombieState newState)
-    {
-        if (_state == newState)
-        {
-            return;
-        }
+		// Handle attack cooldown
+		if (_attackCooldownTimer > 0f)
+		{
+			_attackCooldownTimer -= delta;
+		}
+		else
+		{
+			PerformAttack();
+			_attackCooldownTimer = AttackCooldown;
+		}
+	}
 
-        _state = newState;
+	private void PerformAttack()
+	{
+		if (_player is null)
+		{
+			return;
+		}
 
-        // Update animation based on state
-        if (_sprite is null)
-        {
-            return;
-        }
+		// Try to damage the player through the interface
+		if (_player is IDamageable damageable)
+		{
+			var hitPos = _player.GlobalPosition;
+			var fromPos = GlobalPosition;
+			var hitNormal = (fromPos - hitPos).Normalized();
 
-        switch (_state)
-        {
-            case ZombieState.Idle:
-                _sprite.Play("idle");
-                break;
-            case ZombieState.Chasing:
-                _sprite.Play("walk");
-                break;
-            case ZombieState.Attacking:
-                // Only start attack animation if not already playing
-                if (_sprite.Animation != "attack")
-                {
-                    _sprite.Play("attack");
-                }
-                break;
-        }
-    }
+			damageable.ApplyDamage(AttackDamage, fromPos, hitPos, hitNormal);
+		}
+	}
 
-    private void OnAnimationFinished()
-    {
-        if (_sprite is null)
-        {
-            return;
-        }
+	private void SetState(ZombieState newState)
+	{
+		if (_state == newState)
+		{
+			return;
+		}
 
-        // Loop attack animation while in attacking state
-        if (_state == ZombieState.Attacking && _sprite.Animation == "attack")
-        {
-            _sprite.Play("attack");
-        }
-    }
+		_state = newState;
 
-    private void UpdatePlayerReference()
-    {
-        if (_player is not null && IsInstanceValid(_player))
-        {
-            return;
-        }
+		// Update animation based on state
+		if (_sprite is null)
+		{
+			return;
+		}
 
-        var players = GetTree().GetNodesInGroup("player");
-        _player = players.Count > 0 ? players[0] as Node2D : null;
-    }
+		switch (_state)
+		{
+			case ZombieState.Idle:
+				_sprite.Play("idle");
+				break;
+			case ZombieState.Chasing:
+				_sprite.Play("walk");
+				break;
+			case ZombieState.Attacking:
+				// Only start attack animation if not already playing
+				if (_sprite.Animation != "attack")
+				{
+					_sprite.Play("attack");
+				}
+				break;
+		}
+	}
 
-    /// <summary>
-    /// Damage interface implementation.
-    /// </summary>
-    public void ApplyDamage(float amount, Vector2 fromPos, Vector2 hitPos, Vector2 hitNormal)
-    {
-        var hitDirection = (hitPos - fromPos).Normalized();
-        if (hitDirection != Vector2.Zero)
-        {
-            _lastDamageDirection = hitDirection;
-        }
+	private void OnAnimationFinished()
+	{
+		if (_sprite is null)
+		{
+			return;
+		}
 
-        _currentHealth -= amount;
+		// Loop attack animation while in attacking state
+		if (_state == ZombieState.Attacking && _sprite.Animation == "attack")
+		{
+			_sprite.Play("attack");
+		}
+	}
 
-        // Apply knockback away from damage source
-        var knockbackDir = (GlobalPosition - fromPos).Normalized();
-        if (knockbackDir == Vector2.Zero)
-        {
-            knockbackDir = Vector2.Right;
-        }
-        _knockbackVelocity = knockbackDir * KnockbackStrength;
+	private void UpdatePlayerReference()
+	{
+		if (_player is not null && IsInstanceValid(_player))
+		{
+			return;
+		}
 
-        // Trigger hit flash
-        _hitFlashTimer = HitFlashDuration;
-        ApplyHitFlash();
+		var players = GetTree().GetNodesInGroup("player");
+		_player = players.Count > 0 ? players[0] as Node2D : null;
+	}
 
-        // Aggro on taking damage
-        _hasSeenPlayer = true;
+	/// <summary>
+	/// Damage interface implementation.
+	/// </summary>
+	public void ApplyDamage(float amount, Vector2 fromPos, Vector2 hitPos, Vector2 hitNormal)
+	{
+		var hitDirection = (hitPos - fromPos).Normalized();
+		if (hitDirection != Vector2.Zero)
+		{
+			_lastDamageDirection = hitDirection;
+		}
 
-        if (_currentHealth <= 0f)
-        {
-            Die();
-        }
-    }
+		_currentHealth -= amount;
 
-    private void ApplyKnockbackDamp(float delta)
-    {
-        if (_knockbackVelocity == Vector2.Zero)
-        {
-            return;
-        }
+		// Apply knockback away from damage source
+		var knockbackDir = (GlobalPosition - fromPos).Normalized();
+		if (knockbackDir == Vector2.Zero)
+		{
+			knockbackDir = Vector2.Right;
+		}
+		_knockbackVelocity = knockbackDir * KnockbackStrength;
 
-        _knockbackVelocity = _knockbackVelocity.MoveToward(Vector2.Zero, KnockbackDamp * delta);
-    }
+		// Trigger hit flash
+		_hitFlashTimer = HitFlashDuration;
+		ApplyHitFlash();
 
-    private void ApplyHitFlash()
-    {
-        if (_sprite is null)
-        {
-            return;
-        }
+		// Aggro on taking damage
+		_hasSeenPlayer = true;
 
-        // White flash overlay effect
-        _sprite.Modulate = new Color(2f, 2f, 2f, 1f);
-    }
+		if (_currentHealth <= 0f)
+		{
+			Die();
+		}
+	}
 
-    private void UpdateHitFlash(float delta)
-    {
-        if (_hitFlashTimer <= 0f)
-        {
-            return;
-        }
+	private void ApplyKnockbackDamp(float delta)
+	{
+		if (_knockbackVelocity == Vector2.Zero)
+		{
+			return;
+		}
 
-        _hitFlashTimer -= delta;
+		_knockbackVelocity = _knockbackVelocity.MoveToward(Vector2.Zero, KnockbackDamp * delta);
+	}
 
-        if (_hitFlashTimer <= 0f && _sprite is not null)
-        {
-            _sprite.Modulate = Colors.White;
-        }
-    }
+	private void ApplyHitFlash()
+	{
+		if (_sprite is null)
+		{
+			return;
+		}
 
-    private void Die()
-    {
-        SpawnBloodSpatter();
-        SpawnCorpse();
-        QueueFree();
-    }
+		// White flash overlay effect
+		_sprite.Modulate = new Color(2f, 2f, 2f, 1f);
+	}
 
-    private void SpawnCorpse()
-    {
-        if (s_corpseScene is null)
-        {
-            return;
-        }
+	private void UpdateHitFlash(float delta)
+	{
+		if (_hitFlashTimer <= 0f)
+		{
+			return;
+		}
 
-        if (s_corpseScene.Instantiate<Node2D>() is not Node2D corpse)
-        {
-            return;
-        }
+		_hitFlashTimer -= delta;
 
-        corpse.GlobalPosition = GlobalPosition;
-        corpse.GlobalRotation = GlobalRotation;
-        GetTree().Root.AddChild(corpse);
-    }
+		if (_hitFlashTimer <= 0f && _sprite is not null)
+		{
+			_sprite.Modulate = Colors.White;
+		}
+	}
 
-    private void SpawnBloodSpatter()
-    {
-        if (s_bloodSpatterScene is null)
-        {
-            return;
-        }
+	private void Die()
+	{
+		SpawnBloodSpatter();
+		SpawnCorpse();
+		QueueFree();
+	}
 
-        if (s_bloodSpatterScene.Instantiate() is not BloodSpatter spatter)
-        {
-            return;
-        }
+	private void SpawnCorpse()
+	{
+		if (s_corpseScene is null)
+		{
+			return;
+		}
 
-        spatter.GlobalPosition = GlobalPosition;
-        var sprayDirection = _lastDamageDirection;
-        if (sprayDirection == Vector2.Zero)
-        {
-            sprayDirection = Vector2.Down;
-        }
+		if (s_corpseScene.Instantiate<Node2D>() is not Node2D corpse)
+		{
+			return;
+		}
 
-        spatter.SprayDirection = sprayDirection;
-        GetTree().Root.AddChild(spatter);
-    }
+		corpse.GlobalPosition = GlobalPosition;
+		corpse.GlobalRotation = GlobalRotation;
+		GetTree().Root.AddChild(corpse);
+	}
+
+	private void SpawnBloodSpatter()
+	{
+		if (s_bloodSpatterScene is null)
+		{
+			return;
+		}
+
+		if (s_bloodSpatterScene.Instantiate() is not BloodSpatter spatter)
+		{
+			return;
+		}
+
+		spatter.GlobalPosition = GlobalPosition;
+		var sprayDirection = _lastDamageDirection;
+		if (sprayDirection == Vector2.Zero)
+		{
+			sprayDirection = Vector2.Down;
+		}
+
+		spatter.SprayDirection = sprayDirection;
+		GetTree().Root.AddChild(spatter);
+	}
 }
