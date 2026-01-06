@@ -1,13 +1,14 @@
 namespace DAIgame.Player;
 
 using DAIgame.Combat;
+using DAIgame.Core;
 using Godot;
 
 /// <summary>
 /// Hotline Miami-style player controller with snappy WASD movement and mouse aim.
 /// Attach to a CharacterBody2D node.
 /// </summary>
-public partial class PlayerController : CharacterBody2D
+public partial class PlayerController : CharacterBody2D, IDamageable
 {
     /// <summary>
     /// Movement speed in pixels per second.

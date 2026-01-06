@@ -1,5 +1,6 @@
 namespace DAIgame.Combat;
 
+using DAIgame.Core;
 using Godot;
 
 /// <summary>
@@ -68,11 +69,11 @@ public partial class HitscanWeapon : Node2D
         // Check if the collider or its parent is damageable
         if (collider is Node node)
         {
-            var damageable = FindDamageableNode(node);
-            if (damageable is not null && damageable.HasMethod("ApplyDamage"))
+            var damageable = FindDamageableTarget(node);
+            if (damageable is not null)
             {
                 var fromPos = GlobalPosition;
-                damageable.Call("ApplyDamage", Damage, fromPos, hitPosition, hitNormal);
+                damageable.ApplyDamage(Damage, fromPos, hitPosition, hitNormal);
             }
         }
     }
@@ -111,21 +112,26 @@ public partial class HitscanWeapon : Node2D
         particles.Finished += particles.QueueFree;
     }
 
-    private static Node? FindDamageableNode(Node node)
+    /// <summary>
+    /// Finds the nearest damageable target by walking up the node hierarchy.
+    /// </summary>
+    /// <param name="node">The starting node (typically a collision shape).</param>
+    /// <returns>The IDamageable target, or null if none found.</returns>
+    private static IDamageable? FindDamageableTarget(Node node)
     {
         // Check if the node itself is damageable
-        if (node.IsInGroup("damageable"))
+        if (node is IDamageable damageable)
         {
-            return node;
+            return damageable;
         }
 
         // Check parent nodes
         var parent = node.GetParent();
         while (parent is not null)
         {
-            if (parent.IsInGroup("damageable"))
+            if (parent is IDamageable parentDamageable)
             {
-                return parent;
+                return parentDamageable;
             }
             parent = parent.GetParent();
         }
