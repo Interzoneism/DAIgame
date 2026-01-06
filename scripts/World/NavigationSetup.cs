@@ -70,7 +70,7 @@ public partial class NavigationSetup : NavigationRegion2D
 			return;
 		}
 
-		// Find bounding box
+		// Find bounding box for the navigable area.
 		var minX = int.MaxValue;
 		var maxX = int.MinValue;
 		var minY = int.MaxValue;
@@ -99,11 +99,32 @@ public partial class NavigationSetup : NavigationRegion2D
 			}
 		}
 
-		// Create outer boundary polygon from bounding box
-		// Then let NavigationServer handle the complex merging
 		var halfSize = (Vector2)tileSize / 2f;
 
-		// Add each floor tile as a separate outline - NavigationServer will merge them
+		// Create outer boundary polygon from bounding box to define bake bounds.
+		var minLocal = FloorTileMap.MapToLocal(new Vector2I(minX, minY)) - halfSize;
+		var maxLocal = FloorTileMap.MapToLocal(new Vector2I(maxX, maxY)) + halfSize;
+		var minGlobal = FloorTileMap.ToGlobal(minLocal);
+		var maxGlobal = FloorTileMap.ToGlobal(maxLocal);
+		var minNav = ToLocal(minGlobal);
+		var maxNav = ToLocal(maxGlobal);
+
+		var boundsOutline = new Vector2[]
+		{
+			new Vector2(minNav.X, minNav.Y),
+			new Vector2(maxNav.X, minNav.Y),
+			new Vector2(maxNav.X, maxNav.Y),
+			new Vector2(minNav.X, maxNav.Y),
+		};
+
+		navPoly.AddOutline(boundsOutline);
+
+		var sourceGeometry = new NavigationMeshSourceGeometryData2D();
+
+		var wallCellCount = WallsTileMap?.GetUsedCells().Count ?? 0;
+		GD.Print($"NavigationSetup: Baking nav mesh from {validCells.Count} floor tiles, {wallCellCount} walls.");
+
+		// Add each floor tile as traversable source geometry.
 		foreach (var cell in validCells)
 		{
 			// MapToLocal gives position in TileMapLayer's local space
@@ -120,13 +141,43 @@ public partial class NavigationSetup : NavigationRegion2D
 				navLocalPos + new Vector2(-halfSize.X, halfSize.Y),
 			};
 
-			navPoly.AddOutline(tilePolygon);
+			sourceGeometry.AddTraversableOutline(tilePolygon);
 		}
 
-// Use NavigationServer2D to bake from source geometry
-		var sourceGeometry = new NavigationMeshSourceGeometryData2D();
-		NavigationServer2D.ParseSourceGeometryData(navPoly, sourceGeometry, this);
+		if (WallsTileMap is not null && wallCellCount > 0)
+		{
+			var wallTileSize = WallsTileMap.TileSet?.TileSize ?? tileSize;
+			var wallHalfSize = (Vector2)wallTileSize / 2f;
+
+			foreach (var cell in WallsTileMap.GetUsedCells())
+			{
+				var localPos = WallsTileMap.MapToLocal(cell);
+				var globalPos = WallsTileMap.ToGlobal(localPos);
+				var navLocalPos = ToLocal(globalPos);
+
+				var wallPolygon = new Vector2[]
+				{
+					navLocalPos + new Vector2(-wallHalfSize.X, -wallHalfSize.Y),
+					navLocalPos + new Vector2(wallHalfSize.X, -wallHalfSize.Y),
+					navLocalPos + new Vector2(wallHalfSize.X, wallHalfSize.Y),
+					navLocalPos + new Vector2(-wallHalfSize.X, wallHalfSize.Y),
+				};
+
+				sourceGeometry.AddObstructionOutline(wallPolygon);
+			}
+		}
+
+		if (!sourceGeometry.HasData())
+		{
+			GD.PrintErr("NavigationSetup: No source geometry to bake");
+			return;
+		}
+
 		NavigationServer2D.BakeFromSourceGeometryData(navPoly, sourceGeometry);
+		if (navPoly.GetPolygonCount() == 0)
+		{
+			GD.PrintErr("NavigationSetup: Baked navigation mesh has 0 polygons");
+		}
 
 		NavigationPolygon = navPoly;
 	}
