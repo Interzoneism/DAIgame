@@ -24,7 +24,7 @@ public class GameManagerTest : TestClass
 
         try
         {
-            Should.Throw<InvalidOperationException>(() => GameManager.GetRequiredInstance());
+            Should.Throw<InvalidOperationException>(GameManager.GetRequiredInstance);
         }
         finally
         {
