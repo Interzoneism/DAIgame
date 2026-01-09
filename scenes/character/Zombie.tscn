@@ -1,7 +1,8 @@
-[gd_scene load_steps=4 format=3 uid="uid://qn8rxdg5vug5"]
+[gd_scene load_steps=5 format=3 uid="uid://qn8rxdg5vug5"]
 
 [ext_resource type="Script" path="res://scripts/AI/ZombieController.cs" id="1_zombie"]
 [ext_resource type="SpriteFrames" uid="uid://cb2bf5j28w032" path="res://assets/spriteframes/sprF_zombie.tres" id="2_frames"]
+[ext_resource type="SpriteFrames" uid="uid://cr0o7t6e44h3t" path="res://assets/spriteframes/sprF_zombieLegs.tres" id="3_ccr16"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_nip5i"]
 radius = 7.8125
@@ -13,14 +14,14 @@ collision_layer = 2
 script = ExtResource("1_zombie")
 MoveSpeed = 50.0
 
-[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+[node name="Body" type="Node2D" parent="."]
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Body"]
 position = Vector2(1, 0)
-scale = Vector2(0.1, 0.1)
 sprite_frames = ExtResource("2_frames")
 animation = &"idle"
-offset = Vector2(17.48, -8.3)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Body"]
 scale = Vector2(0.64, 0.64)
 shape = SubResource("CapsuleShape2D_nip5i")
 
@@ -30,3 +31,10 @@ target_desired_distance = 20.0
 avoidance_enabled = true
 neighbor_distance = 100.0
 max_neighbors = 5
+
+[node name="Legs" type="Node2D" parent="."]
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Legs"]
+z_index = -1
+sprite_frames = ExtResource("3_ccr16")
+animation = &"walkL"

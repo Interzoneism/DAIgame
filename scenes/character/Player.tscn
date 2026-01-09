@@ -23,7 +23,7 @@ MoveSpeed = 100.0
 KnockbackStrength = 50.0
 
 [node name="Collision" type="CollisionShape2D" parent="."]
-position = Vector2(-1.52, 0)
+position = Vector2(-2.595, 0.25)
 scale = Vector2(0.71, 0.84)
 shape = SubResource("CapsuleShape2D_5ntua")
 
@@ -45,7 +45,7 @@ animation = &"walkL"
 [node name="Hurtbox" type="Area2D" parent="."]
 
 [node name="HurtboxShape" type="CollisionShape2D" parent="Hurtbox"]
-position = Vector2(-2, 0)
+position = Vector2(-3.025, 0.51)
 scale = Vector2(1.055, 0.685)
 shape = SubResource("CapsuleShape2D_eq5ko")
 
