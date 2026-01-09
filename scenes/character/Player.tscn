@@ -19,6 +19,8 @@ height = 29.19708
 z_index = 5
 collision_layer = 2
 script = ExtResource("2_player")
+MoveSpeed = 100.0
+KnockbackStrength = 50.0
 
 [node name="Collision" type="CollisionShape2D" parent="."]
 position = Vector2(-1.52, 0)
@@ -38,7 +40,7 @@ animation = &"walk"
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Legs"]
 z_index = -1
 sprite_frames = ExtResource("3_cxfou")
-animation = &"walk"
+animation = &"walkL"
 
 [node name="Hurtbox" type="Area2D" parent="."]
 
