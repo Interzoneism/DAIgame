@@ -30,4 +30,3 @@ target_desired_distance = 20.0
 avoidance_enabled = true
 neighbor_distance = 100.0
 max_neighbors = 5
-debug_enabled = true

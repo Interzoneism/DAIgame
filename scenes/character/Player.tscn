@@ -38,7 +38,7 @@ animation = &"walk"
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Legs"]
 z_index = -1
 sprite_frames = ExtResource("3_cxfou")
-animation = &"walk"
+animation = &"walkL"
 
 [node name="Hurtbox" type="Area2D" parent="."]
 

@@ -417,3 +417,6 @@ dotnet_diagnostic.IDE0010.severity = none
 dotnet_diagnostic.IDE0062.severity = warning
 # Don't make me use properties if I don't want to.
 dotnet_diagnostic.IDE0032.severity = none
+
+# IDE0055: Fix formatting
+dotnet_diagnostic.IDE0055.severity = none
