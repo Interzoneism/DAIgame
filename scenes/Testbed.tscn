@@ -903,7 +903,6 @@ script = ExtResource("5_hud")
 
 [node name="Player" parent="." instance=ExtResource("1_player")]
 position = Vector2(320, 180)
-KnockbackStrength = 50.0
 
 [node name="Zombie1" parent="." instance=ExtResource("2_zombie")]
 position = Vector2(500, 180)

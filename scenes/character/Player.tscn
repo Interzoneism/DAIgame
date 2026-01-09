@@ -19,6 +19,8 @@ height = 29.19708
 z_index = 5
 collision_layer = 2
 script = ExtResource("2_player")
+MoveSpeed = 100.0
+KnockbackStrength = 50.0
 
 [node name="Collision" type="CollisionShape2D" parent="."]
 position = Vector2(-1.52, 0)
