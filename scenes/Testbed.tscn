@@ -1,7 +1,8 @@
-[gd_scene load_steps=14 format=4 uid="uid://dxu03onavnehe"]
+[gd_scene load_steps=15 format=4 uid="uid://dxu03onavnehe"]
 
 [ext_resource type="PackedScene" uid="uid://bx3d1r6cnb3o1" path="res://scenes/character/Player.tscn" id="1_player"]
 [ext_resource type="PackedScene" uid="uid://qn8rxdg5vug5" path="res://scenes/character/Zombie.tscn" id="2_zombie"]
+[ext_resource type="PackedScene" uid="uid://gno7v2qal3y2" path="res://scenes/Door.tscn" id="3_6p0c6"]
 [ext_resource type="Script" path="res://scripts/Core/TestbedController.cs" id="3_testbed"]
 [ext_resource type="Script" path="res://scripts/World/DayNightController.cs" id="4_daynight"]
 [ext_resource type="Script" path="res://scripts/UI/GameHUD.cs" id="5_hud"]
@@ -89,6 +90,7 @@ texture_region_size = Vector2i(8, 8)
 [sub_resource type="TileSet" id="TileSet_p8pbw"]
 tile_size = Vector2i(8, 8)
 physics_layer_0/collision_layer = 1
+physics_layer_0/collision_mask = 14
 terrain_set_0/mode = 0
 terrain_set_0/terrain_0/name = "Walls"
 terrain_set_0/terrain_0/color = Color(0.63010365, 0.31883097, 0.9796241, 1)
@@ -891,6 +893,9 @@ sources/0 = SubResource("TileSetAtlasSource_p8pbw")
 script = ExtResource("3_testbed")
 ZombieScene = ExtResource("2_zombie")
 
+[node name="Door" parent="." instance=ExtResource("3_6p0c6")]
+position = Vector2(227.805, 215.495)
+
 [node name="GameManager" type="Node" parent="."]
 script = ExtResource("6_gamemanager")
 
@@ -923,3 +928,7 @@ tile_set = SubResource("TileSet_wt1f5")
 
 [node name="NavigationRegion2D" type="NavigationRegion2D" parent="."]
 script = ExtResource("9_navbuilder")
+
+[node name="Door2" parent="." instance=ExtResource("3_6p0c6")]
+position = Vector2(286, 205)
+rotation = -1.5707964

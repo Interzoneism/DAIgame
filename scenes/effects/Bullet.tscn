@@ -1,0 +1,23 @@
+[gd_scene load_steps=6 format=3 uid="uid://b4v3jxqyqy7ym"]
+
+[ext_resource type="Script" path="res://scripts/Combat/Projectile.cs" id="1_o3liq"]
+[ext_resource type="Texture2D" uid="uid://cv0t474sr7xk2" path="res://assets/sprites/bullet.png" id="2_bullet"]
+[ext_resource type="PackedScene" uid="uid://c6pj8e7k4vqrh" path="res://scenes/effects/MissParticles.tscn" id="3_miss"]
+[ext_resource type="PackedScene" uid="uid://bkm3d7p2wqv8f" path="res://scenes/effects/BloodParticles.tscn" id="4_blood"]
+
+[sub_resource type="SegmentShape2D" id="SegmentShape2D_0umkj"]
+
+[node name="Bullet" type="Area2D"]
+collision_layer = 8
+collision_mask = 5
+script = ExtResource("1_o3liq")
+MissParticlesScene = ExtResource("3_miss")
+BloodParticlesScene = ExtResource("4_blood")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("2_bullet")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -0.5)
+scale = Vector2(1, 0.1)
+shape = SubResource("SegmentShape2D_0umkj")

@@ -1,9 +1,22 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/Combat/ZombieCorpse.cs" id="1"]
-[ext_resource type="Texture2D" path="res://assets/sprites/enemy/zombie-dead.png" id="2"]
+[ext_resource type="SpriteFrames" path="res://assets/spriteframes/sprF_zombie_corpse.tres" id="2"]
 
-[node name="ZombieCorpse" type="Sprite2D"]
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_corpse"]
+width = 30.0
+height = 40.0
+
+[node name="ZombieCorpse" type="CharacterBody2D"]
+collision_layer = 0
+collision_mask = 1
 script = ExtResource("1")
-texture = ExtResource("2")
-scale = Vector2(0.115, 0.115)
+debug_collision_shape = true;
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+position = Vector2(1, 0)
+sprite_frames = ExtResource("2")
+animation = &"corpse"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_corpse")

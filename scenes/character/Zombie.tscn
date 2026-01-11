@@ -10,9 +10,14 @@ height = 25.0
 
 [node name="Zombie" type="CharacterBody2D"]
 z_index = 4
-collision_layer = 2
+collision_layer = 4
+collision_mask = 7
 script = ExtResource("1_zombie")
 MoveSpeed = 50.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+scale = Vector2(0.64, 0.64)
+shape = SubResource("CapsuleShape2D_nip5i")
 
 [node name="Body" type="Node2D" parent="."]
 
@@ -20,10 +25,6 @@ MoveSpeed = 50.0
 position = Vector2(1, 0)
 sprite_frames = ExtResource("2_frames")
 animation = &"idle"
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Body"]
-scale = Vector2(0.64, 0.64)
-shape = SubResource("CapsuleShape2D_nip5i")
 
 [node name="NavigationAgent2D" type="NavigationAgent2D" parent="."]
 path_desired_distance = 8.0

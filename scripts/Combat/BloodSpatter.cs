@@ -12,13 +12,13 @@ public partial class BloodSpatter : Node2D
     public Vector2 SprayDirection { get; set; } = Vector2.Down;
 
     [Export]
-    public int ParticleCount { get; set; } = 40;
+    public int ParticleCount { get; set; } = 300;
 
     [Export]
-    public float PoolVelocityMax { get; set; } = 30f;
+    public float PoolVelocityMax { get; set; } = 150f;
 
     [Export]
-    public float SprayVelocityMax { get; set; } = 120f;
+    public float SprayVelocityMax { get; set; } = 300f;
 
     [Export]
     public float SprayRatio { get; set; } = 0.3f;
@@ -38,7 +38,7 @@ public partial class BloodSpatter : Node2D
     public override void _Ready()
     {
         base._Ready();
-        ZIndex = -9;
+        ZIndex = 2;
         SpawnParticles();
     }
 
@@ -46,6 +46,8 @@ public partial class BloodSpatter : Node2D
     {
         var deltaF = (float)delta;
         var allSettled = true;
+        var spaceState = GetWorld2D().DirectSpaceState;
+        var globalOrigin = GlobalPosition;
 
         foreach (var particle in _activeParticles)
         {
@@ -59,7 +61,29 @@ public partial class BloodSpatter : Node2D
             // Apply friction (top-down view, no gravity)
             particle.Velocity *= 0.92f;
 
-            // Update position
+            // Calculate new position
+            var from = globalOrigin + particle.Position;
+            var to = from + (particle.Velocity * deltaF);
+
+            // Raycast to check for wall collision (layer 1)
+            var rayParams = new PhysicsRayQueryParameters2D
+            {
+                From = from,
+                To = to,
+                CollisionMask = 1
+            };
+            var result = spaceState.IntersectRay(rayParams);
+
+            if (result.Count > 0)
+            {
+                // Hit a wall: settle at collision point
+                particle.Position = ((Vector2)result["position"]) - globalOrigin;
+                particle.Settled = true;
+                CreatePermanentSprite(particle);
+                continue;
+            }
+
+            // No collision, update position
             particle.Position += particle.Velocity * deltaF;
 
             // Settle when velocity is low enough
@@ -135,7 +159,7 @@ public partial class BloodSpatter : Node2D
             GlobalPosition = GlobalPosition + particle.Position,
             Scale = Vector2.One * (particle.Size / 4f),
             Modulate = new Color(0.8f, 0f, 0f, particle.Alpha),
-            ZIndex = -9
+            ZIndex = 2 // below characters but above ground
         };
 
         GetTree().Root.AddChild(sprite);
