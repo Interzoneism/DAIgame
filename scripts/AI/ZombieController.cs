@@ -87,6 +87,7 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 	[Export]
 	public float WallAvoidanceStrength { get; set; } = 60f;
 
+	private Node2D? _bodyNode;
 	private AnimatedSprite2D? _sprite;
 	private NavigationAgent2D? _navAgent;
 	private Node2D? _player;
@@ -134,9 +135,15 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 		AddToGroup("enemies");
 		AddToGroup("damageable");
 
-		_sprite = GetNodeOrNull<AnimatedSprite2D>("Body/AnimatedSprite2D");
+		_bodyNode = GetNodeOrNull<Node2D>("Body");
+		_sprite = _bodyNode?.GetNodeOrNull<AnimatedSprite2D>("AnimatedSprite2D");
 		_navAgent = GetNodeOrNull<NavigationAgent2D>("NavigationAgent2D");
 		_currentHealth = MaxHealth;
+
+		if (_bodyNode is null)
+		{
+			GD.PrintErr("ZombieController._Ready: Body node not found - body rotation will not update");
+		}
 
 		if (_sprite is not null)
 		{
@@ -168,6 +175,10 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 		_legsNode = GetNodeOrNull<Node2D>("Legs");
 		_legsSprite = _legsNode?.GetNodeOrNull<AnimatedSprite2D>("AnimatedSprite2D");
 		_legsSprite?.Play();
+		if (_legsNode is null)
+		{
+			GD.PrintErr("ZombieController._Ready: Legs node not found - leg rotation will not update");
+		}
 
 		s_corpseScene ??= GD.Load<PackedScene>("res://scripts/Combat/ZombieCorpse.tscn");
 
@@ -305,9 +316,9 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 		MoveAndSlide();
 
 		// Face movement direction
-		if (direction != Vector2.Zero)
+		if (direction != Vector2.Zero && _bodyNode is not null)
 		{
-			Rotation = direction.Angle();
+			_bodyNode.Rotation = direction.Angle();
 		}
 
 		// Update legs facing and animation based on movement
@@ -343,9 +354,9 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 
 		// Face the player
 		var direction = _player.GlobalPosition - GlobalPosition;
-		if (direction != Vector2.Zero)
+		if (direction != Vector2.Zero && _bodyNode is not null)
 		{
-			Rotation = direction.Angle();
+			_bodyNode.Rotation = direction.Angle();
 		}
 
 		if (_attackPending)
@@ -695,7 +706,7 @@ public partial class ZombieController : CharacterBody2D, IDamageable
         }
 
         corpse.GlobalPosition = GlobalPosition;
-        corpse.GlobalRotation = GlobalRotation;
+        corpse.GlobalRotation = _bodyNode?.GlobalRotation ?? GlobalRotation;
 
 		// If the corpse is a ZombieCorpse, set its velocity to the zombie's knockback velocity
 		if (corpse is ZombieCorpse zc)
