@@ -40,6 +40,12 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 	public float AttackCooldown { get; set; } = 1.5f;
 
 	/// <summary>
+	/// Delay between starting the attack animation and applying damage.
+	/// </summary>
+	[Export]
+	public float AttackWindupDelay { get; set; } = 0.5f;
+
+	/// <summary>
 	/// Damage dealt to player per attack.
 	/// </summary>
 	[Export]
@@ -85,8 +91,11 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 	private NavigationAgent2D? _navAgent;
 	private Node2D? _player;
 	private float _attackCooldownTimer;
+	private float _attackWindupTimer;
+	private bool _attackPending;
 	private float _currentHealth;
 	private ZombieState _state = ZombieState.Idle;
+	private bool _isAttackAnimating;
 	private bool _hasSeenPlayer;
 	private Vector2 _knockbackVelocity = Vector2.Zero;
 	private float _hitFlashTimer;
@@ -125,14 +134,34 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 		AddToGroup("enemies");
 		AddToGroup("damageable");
 
-		_sprite = GetNodeOrNull<AnimatedSprite2D>("AnimatedSprite2D");
+		_sprite = GetNodeOrNull<AnimatedSprite2D>("Body/AnimatedSprite2D");
 		_navAgent = GetNodeOrNull<NavigationAgent2D>("NavigationAgent2D");
 		_currentHealth = MaxHealth;
 
 		if (_sprite is not null)
 		{
+			if (_sprite.SpriteFrames is not null)
+			{
+				if (_sprite.SpriteFrames.HasAnimation("attack"))
+				{
+					_sprite.SpriteFrames.SetAnimationLoop("attack", false);
+				}
+				else
+				{
+					GD.PrintErr("ZombieController._Ready: attack animation not found in SpriteFrames");
+				}
+			}
+			else
+			{
+				GD.PrintErr("ZombieController._Ready: SpriteFrames missing on AnimatedSprite2D");
+			}
+
 			_sprite.AnimationFinished += OnAnimationFinished;
 			_sprite.Play("idle");
+		}
+		else
+		{
+			GD.PrintErr("ZombieController._Ready: Body/AnimatedSprite2D not found - animations will not play");
 		}
 
 		// Legs node: rotate & play/pause leg walk animations separately from body
@@ -149,6 +178,12 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 	{
 		UpdatePlayerReference();
 
+		// Handle attack cooldown
+		if (_attackCooldownTimer > 0f)
+		{
+			_attackCooldownTimer -= (float)delta;
+		}
+
 		if (_player is null || !IsInstanceValid(_player))
 		{
 			SetState(ZombieState.Idle);
@@ -164,7 +199,11 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 		}
 
 		// State transitions - keep chasing once player has been seen
-		if (_hasSeenPlayer)
+		if (_attackPending || _isAttackAnimating)
+		{
+			SetState(ZombieState.Attacking);
+		}
+		else if (_hasSeenPlayer)
 		{
 			if (distanceToPlayer <= AttackRange)
 			{
@@ -297,6 +336,8 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 
 		if (_player is null)
 		{
+			_attackPending = false;
+			_attackWindupTimer = 0f;
 			return;
 		}
 
@@ -307,22 +348,66 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 			Rotation = direction.Angle();
 		}
 
-		// Handle attack cooldown
-		if (_attackCooldownTimer > 0f)
+		if (_attackPending)
 		{
-			_attackCooldownTimer -= delta;
+			_attackWindupTimer -= delta;
+			if (_attackWindupTimer <= 0f)
+			{
+				PerformAttack();
+			}
+			return;
 		}
-		else
+
+		if (_attackCooldownTimer <= 0f && !_isAttackAnimating)
 		{
-			PerformAttack();
-			_attackCooldownTimer = AttackCooldown;
+			StartAttackWindup();
+			return;
+		}
+
+		if (!_isAttackAnimating)
+		{
+			SetBodyIdleIfPossible();
+		}
+	}
+
+	private void StartAttackWindup()
+	{
+		if (_player is null)
+		{
+			return;
+		}
+
+		_attackPending = true;
+		_attackWindupTimer = AttackWindupDelay;
+
+		// Play attack animation from the start each time we attack
+		if (_sprite is not null)
+		{
+			if (_sprite.SpriteFrames is not null && _sprite.SpriteFrames.HasAnimation("attack"))
+			{
+				_sprite.SpriteFrames.SetAnimationLoop("attack", false);
+			}
+
+			_isAttackAnimating = true;
+			_sprite.Stop();
+			_sprite.Play("attack");
+			GD.Print("ZombieController: Playing attack animation");
 		}
 	}
 
 	private void PerformAttack()
 	{
+		_attackPending = false;
+
 		if (_player is null)
 		{
+			return;
+		}
+
+		var distanceToPlayer = GlobalPosition.DistanceTo(_player.GlobalPosition);
+		if (distanceToPlayer > AttackRange)
+		{
+			GD.Print("ZombieController: Attack windup finished but player is out of range");
 			return;
 		}
 
@@ -334,6 +419,7 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 			var hitNormal = (fromPos - hitPos).Normalized();
 
 			damageable.ApplyDamage(AttackDamage, fromPos, hitPos, hitNormal);
+			_attackCooldownTimer = AttackCooldown;
 		}
 	}
 
@@ -393,6 +479,13 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 			return;
 		}
 
+		// Do not interrupt the attack animation mid-swing
+		if (_isAttackAnimating)
+		{
+			GD.Print($"ZombieController: State changed to {_state} but attack animation is playing; will swap animations after it finishes");
+			return;
+		}
+
 		switch (_state)
 		{
 			case ZombieState.Idle:
@@ -402,184 +495,207 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 				_sprite.Play("walk");
 				break;
 			case ZombieState.Attacking:
-				// Only start attack animation if not already playing
-				if (_sprite.Animation != "attack")
-				{
-					_sprite.Play("attack");
-				}
-				break;
-		}
-	}
+				// Don't force the body animation here - attack animation is
+                // started explicitly in PerformAttack() and resumed in
+                // OnAnimationFinished(). This prevents overriding the attack
+                // playback and avoids leaving the sprite paused on a single frame.
+                break;
+        }
+    }
 
-	private void OnAnimationFinished()
-	{
-		if (_sprite is null)
-		{
-			return;
-		}
+    private void OnAnimationFinished()
+    {
+        if (_sprite is null)
+        {
+            return;
+        }
 
-		// Loop attack animation while in attacking state
-		if (_state == ZombieState.Attacking && _sprite.Animation == "attack")
-		{
-			_sprite.Play("attack");
-		}
-	}
+        // If the attack animation finished, resume an appropriate animation
+        if (_sprite.Animation == "attack")
+        {
+            _isAttackAnimating = false;
 
-	private void UpdatePlayerReference()
-	{
-		if (_player is not null && IsInstanceValid(_player))
-		{
-			return;
-		}
+            if (_state == ZombieState.Chasing)
+            {
+                _sprite.Play("walk");
+                GD.Print("ZombieController: Attack finished, resuming walk");
+            }
+            else
+            {
+                _sprite.Play("idle");
+                GD.Print("ZombieController: Attack finished, returning to idle");
+            }
+        }
+    }
 
-		var players = GetTree().GetNodesInGroup("player");
-		_player = players.Count > 0 ? players[0] as Node2D : null;
-	}
+    private void SetBodyIdleIfPossible()
+    {
+        if (_sprite is null || _isAttackAnimating)
+        {
+            return;
+        }
 
-	/// <summary>
-	/// Damage interface implementation.
-	/// </summary>
-	public void ApplyDamage(float amount, Vector2 fromPos, Vector2 hitPos, Vector2 hitNormal)
-	{
-		var hitDirection = (hitPos - fromPos).Normalized();
-		if (hitDirection != Vector2.Zero)
-		{
-			_lastDamageDirection = hitDirection;
-		}
+        if (_sprite.Animation != "idle")
+        {
+            _sprite.Play("idle");
+        }
+    }
 
-		_currentHealth -= amount;
+    private void UpdatePlayerReference()
+    {
+        if (_player is not null && IsInstanceValid(_player))
+        {
+            return;
+        }
 
-		// Apply knockback in the direction the bullet/attack traveled
-		var knockbackDir = hitDirection;
-		if (knockbackDir == Vector2.Zero)
-		{
-			// Fallback: push away from damage source center
-			knockbackDir = (GlobalPosition - fromPos).Normalized();
-			if (knockbackDir == Vector2.Zero)
-			{
-				knockbackDir = Vector2.Right;
-			}
-			GD.PrintErr("ZombieController.ApplyDamage: hitDirection is zero, using fallback knockback calculation");
-		}
-		_knockbackVelocity = knockbackDir * KnockbackStrength;
+        var players = GetTree().GetNodesInGroup("player");
+        _player = players.Count > 0 ? players[0] as Node2D : null;
+    }
 
-		// Trigger hit flash
-		_hitFlashTimer = HitFlashDuration;
-		ApplyHitFlash();
+    /// <summary>
+    /// Damage interface implementation.
+    /// </summary>
+    public void ApplyDamage(float amount, Vector2 fromPos, Vector2 hitPos, Vector2 hitNormal)
+    {
+        var hitDirection = (hitPos - fromPos).Normalized();
+        if (hitDirection != Vector2.Zero)
+        {
+            _lastDamageDirection = hitDirection;
+        }
 
-		// Aggro on taking damage
-		_hasSeenPlayer = true;
+        _currentHealth -= amount;
 
-		if (_currentHealth <= 0f)
-		{
-			Die();
-		}
-	}
+        // Apply knockback in the direction the bullet/attack traveled
+        var knockbackDir = hitDirection;
+        if (knockbackDir == Vector2.Zero)
+        {
+            // Fallback: push away from damage source center
+            knockbackDir = (GlobalPosition - fromPos).Normalized();
+            if (knockbackDir == Vector2.Zero)
+            {
+                knockbackDir = Vector2.Right;
+            }
+            GD.PrintErr("ZombieController.ApplyDamage: hitDirection is zero, using fallback knockback calculation");
+        }
+        _knockbackVelocity = knockbackDir * KnockbackStrength;
 
-	private void ApplyKnockbackDamp(float delta)
-	{
-		if (_knockbackVelocity == Vector2.Zero)
-		{
-			return;
-		}
+        // Trigger hit flash
+        _hitFlashTimer = HitFlashDuration;
+        ApplyHitFlash();
 
-		_knockbackVelocity = _knockbackVelocity.MoveToward(Vector2.Zero, KnockbackDamp * delta);
-	}
+        // Aggro on taking damage
+        _hasSeenPlayer = true;
 
-	private void ApplyHitFlash()
-	{
-		if (_sprite is null)
-		{
-			return;
-		}
+        if (_currentHealth <= 0f)
+        {
+            Die();
+        }
+    }
 
-		// White flash overlay effect for body
-		_sprite.Modulate = new Color(2f, 2f, 2f, 1f);
+    private void ApplyKnockbackDamp(float delta)
+    {
+        if (_knockbackVelocity == Vector2.Zero)
+        {
+            return;
+        }
 
-		// Mirror the flash on the legs if present
-		if (_legsSprite is not null)
-		{
-			_legsSprite.Modulate = new Color(2f, 2f, 2f, 1f);
-		}
-	}
+        _knockbackVelocity = _knockbackVelocity.MoveToward(Vector2.Zero, KnockbackDamp * delta);
+    }
 
-	private void UpdateHitFlash(float delta)
-	{
-		if (_hitFlashTimer <= 0f)
-		{
-			return;
-		}
+    private void ApplyHitFlash()
+    {
+        if (_sprite is null)
+        {
+            return;
+        }
 
-		_hitFlashTimer -= delta;
+        // White flash overlay effect for body
+        _sprite.Modulate = new Color(2f, 2f, 2f, 1f);
 
-		if (_hitFlashTimer <= 0f && _sprite is not null)
-		{
-			_sprite.Modulate = Colors.White;
-			if (_legsSprite is not null)
-			{
-				_legsSprite.Modulate = Colors.White;
-			}
-		}
-	}
+        // Mirror the flash on the legs if present
+        if (_legsSprite is not null)
+        {
+            _legsSprite.Modulate = new Color(2f, 2f, 2f, 1f);
+        }
+    }
 
-	/// <summary>
-	/// Rotate the legs to face the movement direction (snapped to eight directions) and
-	/// pause/play the walk animation depending on whether the zombie is moving.
-	/// </summary>
-	private void UpdateLegsFacing(Vector2 movementDir, bool isMoving)
-	{
-		if (_legsNode is null)
-		{
-			return;
-		}
+    private void UpdateHitFlash(float delta)
+    {
+        if (_hitFlashTimer <= 0f)
+        {
+            return;
+        }
 
-		var dir = movementDir.LengthSquared() > 0 ? movementDir : _lastMoveDir;
-		var snappedAngle = SnapToEightDirections(dir.Angle());
-		_legsNode.Rotation = snappedAngle;
+        _hitFlashTimer -= delta;
 
-		if (_legsSprite is not null)
-		{
-			// Flip horizontally when moving left
-			_legsSprite.FlipH = dir.X < 0;
+        if (_hitFlashTimer <= 0f && _sprite is not null)
+        {
+            _sprite.Modulate = Colors.White;
+            if (_legsSprite is not null)
+            {
+                _legsSprite.Modulate = Colors.White;
+            }
+        }
+    }
 
-			if (!isMoving)
-			{
-				_legsSprite.Stop();
-			}
-			else
-			{
-				_legsSprite.Play();
-			}
-		}
-	}
+    /// <summary>
+    /// Rotate the legs to face the movement direction (snapped to eight directions) and
+    /// pause/play the walk animation depending on whether the zombie is moving.
+    /// </summary>
+    private void UpdateLegsFacing(Vector2 movementDir, bool isMoving)
+    {
+        if (_legsNode is null)
+        {
+            return;
+        }
 
-	private static float SnapToEightDirections(float angle)
-	{
-		var step = Mathf.Pi / 4f;
-		return Mathf.Round(angle / step) * step;
-	}
+        var dir = movementDir.LengthSquared() > 0 ? movementDir : _lastMoveDir;
+        var snappedAngle = SnapToEightDirections(dir.Angle());
+        _legsNode.Rotation = snappedAngle;
 
-	private void Die()
-	{
-		SpawnBloodSpatter();
-		SpawnCorpse();
-		QueueFree();
-	}
+        if (_legsSprite is not null)
+        {
+            // Flip horizontally when moving left
+            _legsSprite.FlipH = dir.X < 0;
 
-	private void SpawnCorpse()
-	{
-		if (s_corpseScene is null)
-		{
-			return;
-		}
+            if (!isMoving)
+            {
+                _legsSprite.Stop();
+            }
+            else
+            {
+                _legsSprite.Play();
+            }
+        }
+    }
 
-		if (s_corpseScene.Instantiate<Node2D>() is not Node2D corpse)
-		{
-			return;
-		}
+    private static float SnapToEightDirections(float angle)
+    {
+        var step = Mathf.Pi / 4f;
+        return Mathf.Round(angle / step) * step;
+    }
 
-		corpse.GlobalPosition = GlobalPosition;
-		corpse.GlobalRotation = GlobalRotation;
+    private void Die()
+    {
+        SpawnBloodSpatter();
+        SpawnCorpse();
+        QueueFree();
+    }
+
+    private void SpawnCorpse()
+    {
+        if (s_corpseScene is null)
+        {
+            return;
+        }
+
+        if (s_corpseScene.Instantiate<Node2D>() is not Node2D corpse)
+        {
+            return;
+        }
+
+        corpse.GlobalPosition = GlobalPosition;
+        corpse.GlobalRotation = GlobalRotation;
 
 		// If the corpse is a ZombieCorpse, set its velocity to the zombie's knockback velocity
 		if (corpse is ZombieCorpse zc)

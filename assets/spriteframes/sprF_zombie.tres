@@ -335,7 +335,7 @@ animations = [{
 }],
 "loop": true,
 "name": &"attack",
-"speed": 5.0
+"speed": 12.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -504,6 +504,12 @@ animations = [{
 "texture": SubResource("AtlasTexture_x1ixp")
 }, {
 "duration": 1.0,
+"texture": SubResource("AtlasTexture_x1ixp")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_x1ixp")
+}, {
+"duration": 1.0,
 "texture": SubResource("AtlasTexture_5nnf4")
 }, {
 "duration": 1.0,
@@ -519,11 +525,17 @@ animations = [{
 "texture": SubResource("AtlasTexture_ccvq1")
 }, {
 "duration": 1.0,
+"texture": SubResource("AtlasTexture_ccvq1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ccvq1")
+}, {
+"duration": 1.0,
 "texture": SubResource("AtlasTexture_5wgvt")
 }],
 "loop": true,
 "name": &"idle",
-"speed": 5.0
+"speed": 8.0
 }, {
 "frames": [{
 "duration": 1.0,
