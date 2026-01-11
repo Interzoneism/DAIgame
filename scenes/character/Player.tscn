@@ -16,7 +16,7 @@ height = 29.19708
 [node name="Player" type="CharacterBody2D"]
 z_index = 5
 collision_layer = 2
-collision_mask = 5
+collision_mask = 21
 script = ExtResource("2_player")
 MoveSpeed = 100.0
 KnockbackStrength = 50.0

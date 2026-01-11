@@ -9,7 +9,7 @@
 
 [node name="Bullet" type="Area2D"]
 collision_layer = 8
-collision_mask = 5
+collision_mask = 21
 script = ExtResource("1_o3liq")
 MissParticlesScene = ExtResource("3_miss")
 BloodParticlesScene = ExtResource("4_blood")

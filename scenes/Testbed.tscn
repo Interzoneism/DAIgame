@@ -2,7 +2,6 @@
 
 [ext_resource type="PackedScene" uid="uid://bx3d1r6cnb3o1" path="res://scenes/character/Player.tscn" id="1_player"]
 [ext_resource type="PackedScene" uid="uid://qn8rxdg5vug5" path="res://scenes/character/Zombie.tscn" id="2_zombie"]
-[ext_resource type="PackedScene" uid="uid://gno7v2qal3y2" path="res://scenes/Door.tscn" id="3_6p0c6"]
 [ext_resource type="Script" path="res://scripts/Core/TestbedController.cs" id="3_testbed"]
 [ext_resource type="Script" path="res://scripts/World/DayNightController.cs" id="4_daynight"]
 [ext_resource type="Script" path="res://scripts/UI/GameHUD.cs" id="5_hud"]
@@ -10,6 +9,7 @@
 [ext_resource type="Texture2D" uid="uid://bp3gqy7g40oj5" path="res://assets/sprites/tiles_walls_orig.png" id="7_6bnfm"]
 [ext_resource type="Texture2D" uid="uid://c6e6t1gh48rxk" path="res://assets/sprites/tiles_floor_orig.png" id="8_yyggu"]
 [ext_resource type="Script" path="res://scripts/World/NavigationBuilder.cs" id="9_navbuilder"]
+[ext_resource type="PackedScene" uid="uid://dm8x2v4p6y3qr" path="res://scenes/world/Door.tscn" id="10_door"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_yyggu"]
 texture = ExtResource("7_6bnfm")
@@ -893,9 +893,6 @@ sources/0 = SubResource("TileSetAtlasSource_p8pbw")
 script = ExtResource("3_testbed")
 ZombieScene = ExtResource("2_zombie")
 
-[node name="Door" parent="." instance=ExtResource("3_6p0c6")]
-position = Vector2(227.805, 215.495)
-
 [node name="GameManager" type="Node" parent="."]
 script = ExtResource("6_gamemanager")
 
@@ -908,12 +905,6 @@ script = ExtResource("5_hud")
 
 [node name="Player" parent="." instance=ExtResource("1_player")]
 position = Vector2(320, 180)
-
-[node name="Zombie1" parent="." instance=ExtResource("2_zombie")]
-position = Vector2(500, 180)
-
-[node name="Zombie2" parent="." instance=ExtResource("2_zombie")]
-position = Vector2(150, 100)
 
 [node name="Walls" type="TileMapLayer" parent="."]
 z_index = 1
@@ -929,6 +920,9 @@ tile_set = SubResource("TileSet_wt1f5")
 [node name="NavigationRegion2D" type="NavigationRegion2D" parent="."]
 script = ExtResource("9_navbuilder")
 
-[node name="Door2" parent="." instance=ExtResource("3_6p0c6")]
-position = Vector2(286, 205)
+[node name="Door" parent="." instance=ExtResource("10_door")]
+position = Vector2(344, 100)
+
+[node name="Door2" parent="." instance=ExtResource("10_door")]
+position = Vector2(228, 248)
 rotation = -1.5707964
