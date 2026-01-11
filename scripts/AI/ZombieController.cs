@@ -52,6 +52,36 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 	public float AttackDamage { get; set; } = 10f;
 
 	/// <summary>
+	/// Minimum distance to keep from the player to avoid body overlap.
+	/// </summary>
+	[Export]
+	public float MinPlayerSeparation { get; set; } = 14f;
+
+	/// <summary>
+	/// Push strength used to separate from the player when too close.
+	/// </summary>
+	[Export]
+	public float SeparationPushStrength { get; set; } = 80f;
+
+	/// <summary>
+	/// Extra range beyond MinPlayerSeparation where player pushing can influence zombies.
+	/// </summary>
+	[Export]
+	public float PlayerPushRange { get; set; } = 6f;
+
+	/// <summary>
+	/// Scale of the player's push applied to zombies when walking into them.
+    /// </summary>
+    [Export]
+    public float PlayerPushFactor { get; set; } = 0.35f;
+
+    /// <summary>
+	/// Clamp on how fast the player's push can move zombies.
+	/// </summary>
+	[Export]
+	public float MaxPlayerPushSpeed { get; set; } = 60f;
+
+	/// <summary>
 	/// Maximum health of the zombie.
 	/// </summary>
 	[Export]
@@ -87,6 +117,12 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 	[Export]
 	public float WallAvoidanceStrength { get; set; } = 60f;
 
+	/// <summary>
+	/// Duration of knockdown state in seconds.
+	/// </summary>
+	[Export]
+	public float KnockdownDuration { get; set; } = 2f;
+
 	private Node2D? _bodyNode;
 	private AnimatedSprite2D? _sprite;
 	private NavigationAgent2D? _navAgent;
@@ -102,6 +138,10 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 	private float _hitFlashTimer;
 	private Vector2 _lastDamageDirection = Vector2.Down;
 	private float _pathUpdateTimer;
+	private bool _wasTooCloseToPlayer;
+	private bool _wasPlayerPushing;
+	private bool _isKnockedDown;
+	private float _knockdownTimer;
 	private static PackedScene? s_corpseScene;
 	private static PackedScene? s_bloodSpatterScene;
 
@@ -157,6 +197,15 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 				{
 					GD.PrintErr("ZombieController._Ready: attack animation not found in SpriteFrames");
 				}
+
+				if (_sprite.SpriteFrames.HasAnimation("lean"))
+				{
+					_sprite.SpriteFrames.SetAnimationLoop("lean", false);
+				}
+				else
+				{
+					GD.PrintErr("ZombieController._Ready: lean animation not found in SpriteFrames");
+				}
 			}
 			else
 			{
@@ -187,6 +236,13 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 
 	public override void _PhysicsProcess(double delta)
 	{
+		// Handle knockdown state - locked and cannot move
+		if (_isKnockedDown)
+		{
+			HandleKnockdown((float)delta);
+			return;
+		}
+
 		UpdatePlayerReference();
 
 		// Handle attack cooldown
@@ -301,8 +357,14 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 		// Calculate wall avoidance steering
 		var avoidance = CalculateWallAvoidance();
 
+		var separationVelocity = GetPlayerSeparationVelocity();
+		if (separationVelocity != Vector2.Zero)
+		{
+			direction = Vector2.Zero;
+		}
+
 		// Combine navigation direction with wall avoidance
-		var finalVelocity = (direction * MoveSpeed) + avoidance + _knockbackVelocity;
+		var finalVelocity = (direction * MoveSpeed) + avoidance + separationVelocity + _knockbackVelocity;
 
 		// If avoidance is being applied, use avoidance velocity from NavigationAgent if enabled
 		if (_navAgent is not null && _navAgent.AvoidanceEnabled)
@@ -339,7 +401,8 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 		UpdateHitFlash(delta);
 
 		// Stop moving during attack (but allow knockback)
-		Velocity = _knockbackVelocity;
+		var separationVelocity = GetPlayerSeparationVelocity();
+		Velocity = _knockbackVelocity + separationVelocity;
 		MoveAndSlide();
 
 		// Legs should pause while attacking
@@ -521,6 +584,23 @@ public partial class ZombieController : CharacterBody2D, IDamageable
             return;
         }
 
+        // Handle lean animation finishing (after knockdown recovery)
+        if (_sprite.Animation == "lean")
+        {
+            // Return to appropriate state animation
+            if (_state == ZombieState.Chasing)
+            {
+                _sprite.Play("walk");
+                GD.Print("ZombieController: Lean finished, resuming walk");
+            }
+            else
+            {
+                _sprite.Play("idle");
+                GD.Print("ZombieController: Lean finished, returning to idle");
+            }
+            return;
+        }
+
         // If the attack animation finished, resume an appropriate animation
         if (_sprite.Animation == "attack")
         {
@@ -550,6 +630,84 @@ public partial class ZombieController : CharacterBody2D, IDamageable
         {
             _sprite.Play("idle");
         }
+    }
+
+    private Vector2 GetPlayerSeparationVelocity()
+    {
+        if (_player is null)
+        {
+            _wasTooCloseToPlayer = false;
+            return Vector2.Zero;
+        }
+
+        var toPlayer = _player.GlobalPosition - GlobalPosition;
+        var distance = toPlayer.Length();
+
+        if (distance <= 0.001f)
+        {
+            if (!_wasTooCloseToPlayer)
+            {
+                GD.Print("ZombieController: Overlapping player, applying separation push");
+                _wasTooCloseToPlayer = true;
+            }
+            return Vector2.Right * SeparationPushStrength;
+        }
+
+        if (distance < MinPlayerSeparation)
+        {
+            if (!_wasTooCloseToPlayer)
+            {
+                GD.Print("ZombieController: Too close to player, applying separation push");
+                _wasTooCloseToPlayer = true;
+            }
+
+            var away = -toPlayer / distance;
+            var strength = (MinPlayerSeparation - distance) / MinPlayerSeparation;
+            var separation = away * SeparationPushStrength * strength;
+            return separation + GetPlayerPushVelocity(distance);
+        }
+
+        _wasTooCloseToPlayer = false;
+        return GetPlayerPushVelocity(distance);
+    }
+
+    private Vector2 GetPlayerPushVelocity(float distanceToPlayer)
+    {
+        if (_player is not CharacterBody2D playerBody)
+        {
+            _wasPlayerPushing = false;
+            return Vector2.Zero;
+        }
+
+        if (distanceToPlayer > MinPlayerSeparation + PlayerPushRange)
+        {
+            _wasPlayerPushing = false;
+            return Vector2.Zero;
+        }
+
+        var toZombie = GlobalPosition - _player.GlobalPosition;
+        if (toZombie.LengthSquared() <= 0.0001f)
+        {
+            _wasPlayerPushing = false;
+            return Vector2.Zero;
+        }
+
+        var pushDir = toZombie.Normalized();
+        var towardSpeed = Mathf.Max(0f, playerBody.Velocity.Dot(pushDir));
+        if (towardSpeed <= 0.01f)
+        {
+            _wasPlayerPushing = false;
+            return Vector2.Zero;
+        }
+
+        if (!_wasPlayerPushing)
+        {
+            GD.Print("ZombieController: Player pushing zombie, applying push");
+            _wasPlayerPushing = true;
+        }
+
+        var pushSpeed = Mathf.Min(towardSpeed * PlayerPushFactor, MaxPlayerPushSpeed);
+        return pushDir * pushSpeed;
     }
 
     private void UpdatePlayerReference()
@@ -601,6 +759,71 @@ public partial class ZombieController : CharacterBody2D, IDamageable
         {
             Die();
         }
+    }
+
+    /// <summary>
+    /// Applies knockdown state to the zombie.
+    /// Zombie plays "lean" animation, stops at frame 3, and cannot move for knockdown duration.
+    /// </summary>
+    public void ApplyKnockdown()
+    {
+        if (_isKnockedDown)
+        {
+            return;
+        }
+
+        _isKnockedDown = true;
+        _knockdownTimer = KnockdownDuration;
+        _attackPending = false;
+        _isAttackAnimating = false;
+
+        if (_sprite is not null)
+        {
+            _sprite.Stop();
+            _sprite.Play("lean");
+        }
+
+        // Stop legs
+        if (_legsSprite is not null)
+        {
+            _legsSprite.Stop();
+            _legsSprite.Frame = 0;
+        }
+
+        GD.Print("Zombie knocked down!");
+    }
+
+    private void HandleKnockdown(float delta)
+    {
+        ApplyKnockbackDamp(delta);
+        UpdateHitFlash(delta);
+
+        // Keep zombie still during knockdown
+        Velocity = _knockbackVelocity;
+        MoveAndSlide();
+
+        // Stop sprite at frame 3 once reached
+        if (_sprite is not null && _sprite.Animation == "lean" && _sprite.Frame >= 3)
+        {
+            _sprite.Stop();
+            _sprite.Frame = 3;
+        }
+
+        _knockdownTimer -= delta;
+        if (_knockdownTimer <= 0f)
+        {
+            EndKnockdown();
+        }
+    }
+
+    private void EndKnockdown()
+    {
+        _isKnockedDown = false;
+
+        // Resume lean animation to finish naturally
+        _sprite?.Play("lean");
+
+        GD.Print("Zombie knockdown ended, resuming");
     }
 
     private void ApplyKnockbackDamp(float delta)

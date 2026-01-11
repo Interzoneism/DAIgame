@@ -1,4 +1,4 @@
-[gd_resource type="SpriteFrames" load_steps=84 format=3 uid="uid://cb2bf5j28w032"]
+[gd_resource type="SpriteFrames" load_steps=91 format=3 uid="uid://cb2bf5j28w032"]
 
 [ext_resource type="Texture2D" uid="uid://55ycsah8rjph" path="res://assets/sprites/enemy/sprEAttackKnife_strip9.png" id="1_rvjcy"]
 [ext_resource type="Texture2D" uid="uid://gaq065ryhilv" path="res://assets/sprites/enemy/sprEBackMachinegun_strip4.png" id="2_a2gth"]
@@ -9,6 +9,7 @@
 [ext_resource type="Texture2D" uid="uid://fc0p6s4fdb3x" path="res://assets/sprites/enemy/sprECrawl_strip14.png" id="7_y0mss"]
 [ext_resource type="Texture2D" uid="uid://drq2jj1frm26q" path="res://assets/sprites/enemy/sprEGetUp_strip7.png" id="8_hcyfx"]
 [ext_resource type="Texture2D" uid="uid://g3ho7m4dlp3s" path="res://assets/sprites/enemy/sprESearchKnife_strip10.png" id="9_u0576"]
+[ext_resource type="Texture2D" uid="uid://b33ubbd37wxcn" path="res://assets/sprites/enemy/sprEGetUpLean new.png" id="10_a2gth"]
 [ext_resource type="Texture2D" uid="uid://jd55t7i8k3yx" path="res://assets/sprites/enemy/sprEWalkKnife_strip8.png" id="10_ebc4i"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_wca3y"]
@@ -270,6 +271,30 @@ region = Rect2(256, 0, 32, 32)
 [sub_resource type="AtlasTexture" id="AtlasTexture_5wgvt"]
 atlas = ExtResource("9_u0576")
 region = Rect2(288, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_hystq"]
+atlas = ExtResource("10_a2gth")
+region = Rect2(0, 0, 48, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_68uus"]
+atlas = ExtResource("10_a2gth")
+region = Rect2(48, 0, 48, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_yphr6"]
+atlas = ExtResource("10_a2gth")
+region = Rect2(96, 0, 48, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d5o05"]
+atlas = ExtResource("10_a2gth")
+region = Rect2(144, 0, 48, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_y0mss"]
+atlas = ExtResource("10_a2gth")
+region = Rect2(192, 0, 48, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_hcyfx"]
+atlas = ExtResource("10_a2gth")
+region = Rect2(240, 0, 48, 32)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_jvygh"]
 atlas = ExtResource("10_ebc4i")
@@ -536,6 +561,29 @@ animations = [{
 "loop": true,
 "name": &"idle",
 "speed": 8.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hystq")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_68uus")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_yphr6")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d5o05")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_y0mss")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hcyfx")
+}],
+"loop": true,
+"name": &"lean",
+"speed": 5.0
 }, {
 "frames": [{
 "duration": 1.0,

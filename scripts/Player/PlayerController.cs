@@ -68,6 +68,36 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 	/// </summary>
 	public float CurrentHealth { get; private set; }
 
+	/// <summary>
+	/// Movement speed multiplier during kick animation (1/8 of normal).
+	/// </summary>
+	private const float KickSpeedMultiplier = 0.125f;
+
+	/// <summary>
+	/// Delay before kick damage is applied (in seconds).
+	/// </summary>
+	private const float KickDamageDelay = 0.2f;
+
+	/// <summary>
+	/// Range in pixels for kick to hit enemies.
+	/// </summary>
+	private const float KickRange = 30f;
+
+	/// <summary>
+	/// Damage dealt by kick.
+	/// </summary>
+	private const float KickDamage = 5f;
+
+	/// <summary>
+	/// Chance to inflict knockdown on kick (0.0 to 1.0).
+	/// </summary>
+	private const float KickKnockdownChance = 0.5f;
+
+	/// <summary>
+	/// Cone angle in degrees for kick (zombies must be within this cone in front of player).
+	/// </summary>
+	private const float KickConeAngle = 45f;
+
 	private Node2D? _bodyNode;
 	private AnimatedSprite2D? _bodySprite;
 	private Node2D? _legsNode;
@@ -78,6 +108,9 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 	private Vector2 _knockbackVelocity = Vector2.Zero;
 	private float _walkShotgunTimer;
 	private bool _attackPlaying;
+	private bool _kickPlaying;
+	private bool _kickDamagePending;
+	private float _kickDamageTimer;
 	private bool _isMoving;
 	private float _hitFlashTimer;
 
@@ -105,6 +138,11 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 				frames.SetAnimationLoop("attack_shotgun", false);
 			}
 
+			if (frames is not null && frames.HasAnimation("kick"))
+			{
+				frames.SetAnimationLoop("kick", false);
+			}
+
 			_bodySprite.Play("walk");
 		}
 
@@ -116,6 +154,8 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		RotateTowardsMouse();
 		HandleFire();
 		HandleHeal();
+		HandleKick();
+		UpdateKickDamage((float)delta);
 		UpdateBodyAnimation((float)delta);
 		UpdateHitFlash((float)delta);
 	}
@@ -144,7 +184,9 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		}
 
 		// Apply velocity directly - snappy, no acceleration. Knockback is additive and damped separately.
-		Velocity = (inputDir * MoveSpeed) + _knockbackVelocity;
+		// Reduce speed to 1/8 during kick animation.
+		var speedMultiplier = _kickPlaying ? KickSpeedMultiplier : 1f;
+		Velocity = (inputDir * MoveSpeed * speedMultiplier) + _knockbackVelocity;
 		MoveAndSlide();
 
 		UpdateLegsFacing(inputDir);
@@ -153,9 +195,16 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 	/// <summary>
 	/// Rotates the player body to face the mouse cursor.
 	/// Updates every frame for responsive aiming.
+	/// Body direction is locked during kick animation.
 	/// </summary>
 	private void RotateTowardsMouse()
 	{
+		// Lock body direction during kick
+		if (_kickPlaying)
+		{
+			return;
+		}
+
 		var mousePos = GetGlobalMousePosition();
 		var direction = mousePos - GlobalPosition;
 
@@ -175,6 +224,12 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 
 	private void HandleFire()
 	{
+		// Block firing during kick
+		if (_kickPlaying)
+		{
+			return;
+		}
+
 		if (!Input.IsActionJustPressed("Fire"))
 		{
 			return;
@@ -189,6 +244,12 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 
 	private void HandleHeal()
 	{
+		// Block healing during kick
+		if (_kickPlaying)
+		{
+			return;
+		}
+
 		if (!Input.IsActionJustPressed("UseHealItem"))
 		{
 			return;
@@ -221,6 +282,114 @@ public partial class PlayerController : CharacterBody2D, IDamageable
         GD.Print($"Picked up {count} healing item(s). Total: {HealingItems}");
     }
 
+    private void HandleKick()
+    {
+        // Block kicking during attack or already kicking
+        if (_attackPlaying || _kickPlaying)
+        {
+            return;
+        }
+
+        if (!Input.IsActionJustPressed("Kick"))
+        {
+            return;
+        }
+
+        StartKickAnimation();
+    }
+
+    private void StartKickAnimation()
+    {
+        if (_bodySprite is null)
+        {
+            return;
+        }
+
+        _kickPlaying = true;
+        _kickDamagePending = true;
+        _kickDamageTimer = KickDamageDelay;
+        _bodySprite.Stop();
+        _bodySprite.Play("kick");
+
+        // Stop legs animation at frame 0
+        if (_legsSprite is not null)
+        {
+            _legsSprite.Stop();
+            _legsSprite.Frame = 0;
+        }
+
+        GD.Print("Player kick started");
+    }
+
+    private void UpdateKickDamage(float delta)
+    {
+        if (!_kickDamagePending)
+        {
+            return;
+        }
+
+        _kickDamageTimer -= delta;
+        if (_kickDamageTimer <= 0f)
+        {
+            _kickDamagePending = false;
+            PerformKickDamage();
+        }
+    }
+
+    private void PerformKickDamage()
+    {
+        // Get all enemies in the scene
+        var enemies = GetTree().GetNodesInGroup("enemies");
+        var kickOrigin = GlobalPosition;
+
+        GD.Print($"PerformKickDamage: checking {enemies.Count} enemies, kick origin: {kickOrigin}, aim direction: {_aimDirection}");
+
+        foreach (var enemy in enemies)
+        {
+            if (enemy is not Node2D enemyNode)
+            {
+                continue;
+            }
+
+            var distance = kickOrigin.DistanceTo(enemyNode.GlobalPosition);
+            GD.Print($"  Enemy at {enemyNode.GlobalPosition}, distance: {distance:F1}px (range: {KickRange}px)");
+
+            if (distance > KickRange)
+            {
+                continue;
+            }
+
+            // Check if enemy is within the kick cone (45 degrees in front of player)
+            var directionToEnemy = (enemyNode.GlobalPosition - kickOrigin).Normalized();
+            var angleDifference = Mathf.Abs(_aimDirection.AngleTo(directionToEnemy));
+            var maxAngle = Mathf.DegToRad(KickConeAngle / 2f); // Half angle on each side
+
+            GD.Print($"  Angle difference: {Mathf.RadToDeg(angleDifference):F1}° (max: {KickConeAngle / 2f}°)");
+
+            if (angleDifference > maxAngle)
+            {
+                GD.Print($"  Enemy outside kick cone, skipping");
+                continue;
+            }
+
+            // Apply damage
+            if (enemy is IDamageable damageable)
+            {
+                var hitPos = enemyNode.GlobalPosition;
+                var hitNormal = (enemyNode.GlobalPosition - kickOrigin).Normalized();
+                damageable.ApplyDamage(KickDamage, kickOrigin, hitPos, hitNormal);
+                GD.Print($"Kick hit enemy for {KickDamage} damage");
+            }
+
+            // 50% chance to inflict knockdown
+            if (GD.Randf() < KickKnockdownChance && enemy is AI.ZombieController zombie)
+            {
+                zombie.ApplyKnockdown();
+                GD.Print("Kick inflicted knockdown!");
+            }
+        }
+    }
+
     private void StartAttackAnimation()
     {
         if (_bodySprite is null)
@@ -236,7 +405,20 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 
     private void OnBodyAnimationFinished()
     {
-        if (_bodySprite is null || _bodySprite.Animation != "attack_shotgun")
+        if (_bodySprite is null)
+        {
+            return;
+        }
+
+        if (_bodySprite.Animation == "kick")
+        {
+            _kickPlaying = false;
+            _bodySprite.Play("walk");
+            GD.Print("Player kick finished");
+            return;
+        }
+
+        if (_bodySprite.Animation != "attack_shotgun")
         {
             return;
         }
@@ -253,171 +435,183 @@ public partial class PlayerController : CharacterBody2D, IDamageable
             return;
         }
 
-        if (_walkShotgunTimer > 0f)
-        {
-            _walkShotgunTimer -= delta;
-            if (_walkShotgunTimer <= 0f && !_attackPlaying)
-            {
-                _bodySprite.Play("walk");
-            }
-        }
-        else if (!_attackPlaying && _bodySprite.Animation != "walk")
-        {
-            _bodySprite.Play("walk");
-        }
+		// Don't interfere with kick animation
+		if (_kickPlaying)
+		{
+			return;
+		}
 
-        // Pause walk animation when not moving
-        if (!_isMoving && !_attackPlaying && (_bodySprite.Animation == "walk" || _bodySprite.Animation == "walk_shotgun"))
-        {
-            _bodySprite.Stop();
-        }
-        else if (_isMoving && !_attackPlaying)
-        {
-            _bodySprite.Play();
-        }
-    }
+		if (_walkShotgunTimer > 0f)
+		{
+			_walkShotgunTimer -= delta;
+			if (_walkShotgunTimer <= 0f && !_attackPlaying)
+			{
+				_bodySprite.Play("walk");
+			}
+		}
+		else if (!_attackPlaying && _bodySprite.Animation != "walk")
+		{
+			_bodySprite.Play("walk");
+		}
 
-    private void UpdateLegsFacing(Vector2 inputDir)
-    {
-        if (_legsNode is null)
-        {
-            return;
-        }
+		// Pause walk animation when not moving
+		if (!_isMoving && !_attackPlaying && (_bodySprite.Animation == "walk" || _bodySprite.Animation == "walk_shotgun"))
+		{
+			_bodySprite.Stop();
+		}
+		else if (_isMoving && !_attackPlaying)
+		{
+			_bodySprite.Play();
+		}
+	}
 
-        var dir = inputDir.LengthSquared() > 0 ? inputDir : _lastMoveDir;
-        var snappedAngle = SnapToEightDirections(dir.Angle());
-        _legsNode.Rotation = snappedAngle;
+	private void UpdateLegsFacing(Vector2 inputDir)
+	{
+		if (_legsNode is null)
+		{
+			return;
+		}
 
-        // Pause legs animation when not moving
-        if (_legsSprite is not null)
-        {
-            var walkAnim = _aimDirection.X < 0 ? "WalkL" : "WalkR";
-            _legsSprite.FlipH = walkAnim == "WalkL";
+		var dir = inputDir.LengthSquared() > 0 ? inputDir : _lastMoveDir;
+		var snappedAngle = SnapToEightDirections(dir.Angle());
+		_legsNode.Rotation = snappedAngle;
 
-            if (!_isMoving)
-            {
-                _legsSprite.Stop();
-            }
-            else
-            {
-                _legsSprite.Play();
-            }
-        }
-    }
+		// Pause legs animation when not moving or during kick
+		if (_legsSprite is not null)
+		{
+			var walkAnim = _aimDirection.X < 0 ? "WalkL" : "WalkR";
+			_legsSprite.FlipH = walkAnim == "WalkL";
 
-    private static float SnapToEightDirections(float angle)
-    {
-        var step = Mathf.Pi / 4f;
-        return Mathf.Round(angle / step) * step;
-    }
+			// Keep legs stopped at frame 0 during kick
+			if (_kickPlaying)
+			{
+				_legsSprite.Stop();
+				_legsSprite.Frame = 0;
+			}
+			else if (!_isMoving)
+			{
+				_legsSprite.Stop();
+			}
+			else
+			{
+				_legsSprite.Play();
+			}
+		}
+	}
 
-    private void ApplyKnockbackImpulse() => _knockbackVelocity = -_aimDirection * KnockbackStrength;
+	private static float SnapToEightDirections(float angle)
+	{
+		var step = Mathf.Pi / 4f;
+		return Mathf.Round(angle / step) * step;
+	}
 
-    private void ApplyKnockbackDamp(float delta)
-    {
-        if (_knockbackVelocity == Vector2.Zero)
-        {
-            return;
-        }
+	private void ApplyKnockbackImpulse() => _knockbackVelocity = -_aimDirection * KnockbackStrength;
 
-        _knockbackVelocity = _knockbackVelocity.MoveToward(Vector2.Zero, KnockbackDamp * delta);
-    }
+	private void ApplyKnockbackDamp(float delta)
+	{
+		if (_knockbackVelocity == Vector2.Zero)
+		{
+			return;
+		}
 
-    private static Vector2 GetInputDirection()
-    {
-        var inputDir = Vector2.Zero;
+		_knockbackVelocity = _knockbackVelocity.MoveToward(Vector2.Zero, KnockbackDamp * delta);
+	}
 
-        if (Input.IsActionPressed("MoveUp"))
-        {
-            inputDir.Y -= 1;
-        }
+	private static Vector2 GetInputDirection()
+	{
+		var inputDir = Vector2.Zero;
 
-        if (Input.IsActionPressed("MoveDown"))
-        {
-            inputDir.Y += 1;
-        }
+		if (Input.IsActionPressed("MoveUp"))
+		{
+			inputDir.Y -= 1;
+		}
 
-        if (Input.IsActionPressed("MoveLeft"))
-        {
-            inputDir.X -= 1;
-        }
+		if (Input.IsActionPressed("MoveDown"))
+		{
+			inputDir.Y += 1;
+		}
 
-        if (Input.IsActionPressed("MoveRight"))
-        {
-            inputDir.X += 1;
-        }
+		if (Input.IsActionPressed("MoveLeft"))
+		{
+			inputDir.X -= 1;
+		}
 
-        return inputDir;
-    }
+		if (Input.IsActionPressed("MoveRight"))
+		{
+			inputDir.X += 1;
+		}
 
-    /// <summary>
-    /// Damage interface implementation.
-    /// </summary>
-    public void ApplyDamage(float amount, Vector2 fromPos, Vector2 hitPos, Vector2 hitNormal)
-    {
-        CurrentHealth -= amount;
-        GD.Print($"Player took {amount} damage! Health: {CurrentHealth}/{MaxHealth}");
+		return inputDir;
+	}
 
-        // Apply knockback away from damage source
-        var knockbackDir = (GlobalPosition - fromPos).Normalized();
-        if (knockbackDir == Vector2.Zero)
-        {
-            knockbackDir = Vector2.Right;
-        }
-        _knockbackVelocity += knockbackDir * DamageKnockbackStrength;
+	/// <summary>
+	/// Damage interface implementation.
+	/// </summary>
+	public void ApplyDamage(float amount, Vector2 fromPos, Vector2 hitPos, Vector2 hitNormal)
+	{
+		CurrentHealth -= amount;
+		GD.Print($"Player took {amount} damage! Health: {CurrentHealth}/{MaxHealth}");
 
-        // Trigger hit flash
-        _hitFlashTimer = HitFlashDuration;
-        ApplyHitFlash();
+		// Apply knockback away from damage source
+		var knockbackDir = (GlobalPosition - fromPos).Normalized();
+		if (knockbackDir == Vector2.Zero)
+		{
+			knockbackDir = Vector2.Right;
+		}
+		_knockbackVelocity += knockbackDir * DamageKnockbackStrength;
 
-        if (CurrentHealth <= 0f)
-        {
-            Die();
-        }
-    }
+		// Trigger hit flash
+		_hitFlashTimer = HitFlashDuration;
+		ApplyHitFlash();
 
-    private void ApplyHitFlash()
-    {
-        // Red flash overlay effect on player
-        if (_bodySprite is not null)
-        {
-            _bodySprite.Modulate = new Color(2f, 0.5f, 0.5f, 1f);
-        }
+		if (CurrentHealth <= 0f)
+		{
+			Die();
+		}
+	}
 
-        if (_legsSprite is not null)
-        {
-            _legsSprite.Modulate = new Color(2f, 0.5f, 0.5f, 1f);
-        }
-    }
+	private void ApplyHitFlash()
+	{
+		// Red flash overlay effect on player
+		if (_bodySprite is not null)
+		{
+			_bodySprite.Modulate = new Color(2f, 0.5f, 0.5f, 1f);
+		}
 
-    private void UpdateHitFlash(float delta)
-    {
-        if (_hitFlashTimer <= 0f)
-        {
-            return;
-        }
+		if (_legsSprite is not null)
+		{
+			_legsSprite.Modulate = new Color(2f, 0.5f, 0.5f, 1f);
+		}
+	}
 
-        _hitFlashTimer -= delta;
+	private void UpdateHitFlash(float delta)
+	{
+		if (_hitFlashTimer <= 0f)
+		{
+			return;
+		}
 
-        if (_hitFlashTimer <= 0f)
-        {
-            if (_bodySprite is not null)
-            {
-                _bodySprite.Modulate = Colors.White;
-            }
+		_hitFlashTimer -= delta;
 
-            if (_legsSprite is not null)
-            {
-                _legsSprite.Modulate = Colors.White;
-            }
-        }
-    }
+		if (_hitFlashTimer <= 0f)
+		{
+			if (_bodySprite is not null)
+			{
+				_bodySprite.Modulate = Colors.White;
+			}
 
-    private void Die()
-    {
-        GD.Print("Player died!");
-        // For now, just restart by resetting health
-        // Later this could trigger a death screen or respawn system
-        CurrentHealth = MaxHealth;
-    }
+			if (_legsSprite is not null)
+			{
+				_legsSprite.Modulate = Colors.White;
+			}
+		}
+	}
+
+	private void Die()
+	{
+		GD.Print("Player died!");
+		// For now, just restart by resetting health
+		// Later this could trigger a death screen or respawn system
+		CurrentHealth = MaxHealth;
+	}
 }

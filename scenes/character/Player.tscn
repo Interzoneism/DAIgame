@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3 uid="uid://bx3d1r6cnb3o1"]
+[gd_scene load_steps=9 format=3 uid="uid://bx3d1r6cnb3o1"]
 
 [ext_resource type="SpriteFrames" uid="uid://2navlis0yapa" path="res://assets/spriteframes/sprF_player.tres" id="1_4geon"]
 [ext_resource type="Script" path="res://scripts/Player/PlayerController.cs" id="2_player"]
@@ -17,6 +17,7 @@ height = 29.19708
 z_index = 5
 collision_layer = 2
 collision_mask = 21
+motion_mode = 1
 script = ExtResource("2_player")
 MoveSpeed = 100.0
 KnockbackStrength = 50.0

@@ -12,6 +12,8 @@ height = 25.0
 z_index = 4
 collision_layer = 4
 collision_mask = 23
+motion_mode = 1
+platform_floor_layers = 4294967264
 script = ExtResource("1_zombie")
 MoveSpeed = 50.0
 
