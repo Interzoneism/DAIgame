@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/Combat/WeaponData.cs" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+DisplayName = "Pistol"
+WeaponId = "pistol"
+Damage = 25.0
+FireRate = 4.0
+PelletCount = 1
+SpreadAngle = 0.0
+FireMode = 0
+KnockbackStrength = 30.0
+AnimationSuffix = "pistol"
+MaxAmmo = -1
+MagazineSize = 12
+ReloadTime = 1.0
+ProjectileSpeed = 900.0
+SpawnOffsetX = 12.0
+SpawnOffsetY = -2.0
+ReloadMode = 0

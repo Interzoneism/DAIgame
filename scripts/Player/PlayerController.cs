@@ -17,22 +17,16 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 	public float MoveSpeed { get; set; } = 200f;
 
 	/// <summary>
-	/// Force applied backwards when firing.
-	/// </summary>
-	[Export]
-	public float KnockbackStrength { get; set; } = 100f;
-
-	/// <summary>
 	/// Rate at which knockback is damped per second.
 	/// </summary>
 	[Export]
 	public float KnockbackDamp { get; set; } = 350f;
 
 	/// <summary>
-	/// Duration the shotgun walk animation stays active after an attack.
+	/// Duration the weapon walk animation stays active after an attack.
 	/// </summary>
 	[Export]
-	public float WalkShotgunDuration { get; set; } = 2f;
+	public float WeaponWalkDuration { get; set; } = 2f;
 
 	/// <summary>
 	/// Maximum health of the player.
@@ -102,17 +96,19 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 	private AnimatedSprite2D? _bodySprite;
 	private Node2D? _legsNode;
 	private AnimatedSprite2D? _legsSprite;
-	private ProjectileWeapon? _weapon;
+	private WeaponManager? _weaponManager;
 	private Vector2 _lastMoveDir = Vector2.Right;
 	private Vector2 _aimDirection = Vector2.Right;
 	private Vector2 _knockbackVelocity = Vector2.Zero;
-	private float _walkShotgunTimer;
+	private float _weaponWalkTimer;
 	private bool _attackPlaying;
 	private bool _kickPlaying;
 	private bool _kickDamagePending;
 	private float _kickDamageTimer;
 	private bool _isMoving;
 	private float _hitFlashTimer;
+	private string _currentWalkAnim = "walk";
+	private string _currentAttackAnim = "attack_pistol";
 
 	public override void _Ready()
 	{
@@ -125,7 +121,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		_bodyNode = GetNodeOrNull<Node2D>("Body");
 		_bodySprite = _bodyNode?.GetNodeOrNull<AnimatedSprite2D>("AnimatedSprite2D");
 		_legsNode = GetNodeOrNull<Node2D>("Legs");
-		_weapon = GetNodeOrNull<ProjectileWeapon>("ProjectileWeapon");
+		_weaponManager = GetNodeOrNull<WeaponManager>("WeaponManager");
 		_legsSprite = _legsNode?.GetNodeOrNull<AnimatedSprite2D>("AnimatedSprite2D");
 
 		if (_bodySprite is not null)
@@ -133,26 +129,63 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 			_bodySprite.AnimationFinished += OnBodyAnimationFinished;
 
 			var frames = _bodySprite.SpriteFrames;
-			if (frames is not null && frames.HasAnimation("attack_shotgun"))
+			if (frames is not null)
 			{
-				frames.SetAnimationLoop("attack_shotgun", false);
-			}
-
-			if (frames is not null && frames.HasAnimation("kick"))
-			{
-				frames.SetAnimationLoop("kick", false);
+				// Set attack animations to not loop (they play once per shot)
+				SetAnimationNoLoop(frames, "attack_shotgun");
+				SetAnimationNoLoop(frames, "attack_pistol");
+				SetAnimationNoLoop(frames, "attack_uzi");
+				SetAnimationNoLoop(frames, "kick");
 			}
 
 			_bodySprite.Play("walk");
 		}
 
 		_legsSprite?.Play("walk");
+
+		// Subscribe to weapon change events
+		if (_weaponManager is not null)
+		{
+			_weaponManager.WeaponChanged += OnWeaponChanged;
+			// Initialize animations for starting weapon
+			OnWeaponChanged(_weaponManager.CurrentWeapon);
+		}
+	}
+
+	private static void SetAnimationNoLoop(SpriteFrames frames, string animName)
+	{
+		if (frames.HasAnimation(animName))
+		{
+			frames.SetAnimationLoop(animName, false);
+		}
+	}
+
+	private void OnWeaponChanged(WeaponData? weapon)
+	{
+		if (weapon is null)
+		{
+			_currentWalkAnim = "walk";
+			_currentAttackAnim = "attack_pistol";
+			return;
+		}
+
+		_currentWalkAnim = weapon.GetWalkAnimation();
+		_currentAttackAnim = weapon.GetAttackAnimation();
+		GD.Print($"PlayerController: Weapon changed to {weapon.DisplayName}, walk={_currentWalkAnim}, attack={_currentAttackAnim}");
+
+		// Update current animation if not attacking or kicking
+		if (!_attackPlaying && !_kickPlaying && _bodySprite is not null)
+		{
+			_bodySprite.Play(_currentWalkAnim);
+		}
 	}
 
 	public override void _Process(double delta)
 	{
 		RotateTowardsMouse();
 		HandleFire();
+		HandleWeaponSwitch();
+		HandleReload();
 		HandleHeal();
 		HandleKick();
 		UpdateKickDamage((float)delta);
@@ -230,16 +263,70 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 			return;
 		}
 
-		if (!Input.IsActionJustPressed("Fire"))
+		if (_weaponManager is null)
 		{
 			return;
 		}
 
-		StartAttackAnimation();
+		var weapon = _weaponManager.CurrentWeapon;
+		if (weapon is null)
+		{
+			return;
+		}
 
-		// Fire the projectile weapon
-		_weapon?.Fire(GlobalPosition, _aimDirection);
-		ApplyKnockbackImpulse();
+		// Check fire input based on weapon fire mode
+		bool shouldFire;
+		if (weapon.FireMode == WeaponFireMode.Automatic)
+		{
+			// Automatic: fire while held
+			shouldFire = Input.IsActionPressed("Fire");
+		}
+		else
+		{
+			// Semi-auto: fire on press only
+			shouldFire = Input.IsActionJustPressed("Fire");
+		}
+
+		if (!shouldFire)
+		{
+			return;
+		}
+
+		if (_weaponManager.TryFire(GlobalPosition, _aimDirection))
+		{
+			StartAttackAnimation();
+			ApplyKnockbackImpulse(weapon.KnockbackStrength);
+		}
+	}
+
+	private void HandleWeaponSwitch()
+	{
+		if (_kickPlaying || _attackPlaying)
+		{
+			return;
+		}
+
+		if (!Input.IsActionJustPressed("SwitchHeld"))
+		{
+			return;
+		}
+
+		_weaponManager?.CycleWeapon();
+	}
+
+	private void HandleReload()
+	{
+		if (_kickPlaying)
+		{
+			return;
+		}
+
+		if (!Input.IsActionJustPressed("Reload"))
+		{
+			return;
+		}
+
+		_weaponManager?.StartReload();
 	}
 
 	private void HandleHeal()
@@ -398,9 +485,9 @@ public partial class PlayerController : CharacterBody2D, IDamageable
         }
 
         _attackPlaying = true;
-        _walkShotgunTimer = 0f;
+        _weaponWalkTimer = 0f;
         _bodySprite.Stop();
-        _bodySprite.Play("attack_shotgun");
+        _bodySprite.Play(_currentAttackAnim);
     }
 
     private void OnBodyAnimationFinished()
@@ -413,19 +500,27 @@ public partial class PlayerController : CharacterBody2D, IDamageable
         if (_bodySprite.Animation == "kick")
         {
             _kickPlaying = false;
-            _bodySprite.Play("walk");
+            _bodySprite.Play(_currentWalkAnim);
             GD.Print("Player kick finished");
             return;
         }
 
-        if (_bodySprite.Animation != "attack_shotgun")
+        // Check if any attack animation finished
+        if (!IsAttackAnimation(_bodySprite.Animation))
         {
             return;
         }
 
         _attackPlaying = false;
-        _walkShotgunTimer = WalkShotgunDuration;
-        _bodySprite.Play("walk_shotgun");
+        _weaponWalkTimer = WeaponWalkDuration;
+        _bodySprite.Play(_currentWalkAnim);
+    }
+
+    private static bool IsAttackAnimation(StringName animation)
+    {
+        return animation == "attack_pistol" ||
+               animation == "attack_shotgun" ||
+               animation == "attack_uzi";
     }
 
     private void UpdateBodyAnimation(float delta)
@@ -441,21 +536,21 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 			return;
 		}
 
-		if (_walkShotgunTimer > 0f)
+		if (_weaponWalkTimer > 0f)
 		{
-			_walkShotgunTimer -= delta;
-			if (_walkShotgunTimer <= 0f && !_attackPlaying)
+			_weaponWalkTimer -= delta;
+			if (_weaponWalkTimer <= 0f && !_attackPlaying)
 			{
-				_bodySprite.Play("walk");
+				_bodySprite.Play(_currentWalkAnim);
 			}
 		}
-		else if (!_attackPlaying && _bodySprite.Animation != "walk")
+		else if (!_attackPlaying && _bodySprite.Animation != _currentWalkAnim)
 		{
-			_bodySprite.Play("walk");
+			_bodySprite.Play(_currentWalkAnim);
 		}
 
 		// Pause walk animation when not moving
-		if (!_isMoving && !_attackPlaying && (_bodySprite.Animation == "walk" || _bodySprite.Animation == "walk_shotgun"))
+		if (!_isMoving && !_attackPlaying && IsWalkAnimation(_bodySprite.Animation))
 		{
 			_bodySprite.Stop();
 		}
@@ -463,6 +558,14 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		{
 			_bodySprite.Play();
 		}
+	}
+
+	private static bool IsWalkAnimation(StringName animation)
+	{
+		return animation == "walk" ||
+			   animation == "walk_pistol" ||
+			   animation == "walk_shotgun" ||
+			   animation == "walk_uzi";
 	}
 
 	private void UpdateLegsFacing(Vector2 inputDir)
@@ -505,7 +608,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		return Mathf.Round(angle / step) * step;
 	}
 
-	private void ApplyKnockbackImpulse() => _knockbackVelocity = -_aimDirection * KnockbackStrength;
+	private void ApplyKnockbackImpulse(float strength) => _knockbackVelocity = -_aimDirection * strength;
 
 	private void ApplyKnockbackDamp(float delta)
 	{

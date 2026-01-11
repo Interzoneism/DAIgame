@@ -1,11 +1,14 @@
-[gd_scene load_steps=9 format=3 uid="uid://bx3d1r6cnb3o1"]
+[gd_scene load_steps=12 format=3 uid="uid://bx3d1r6cnb3o1"]
 
 [ext_resource type="SpriteFrames" uid="uid://2navlis0yapa" path="res://assets/spriteframes/sprF_player.tres" id="1_4geon"]
 [ext_resource type="Script" path="res://scripts/Player/PlayerController.cs" id="2_player"]
 [ext_resource type="SpriteFrames" uid="uid://d1g8cuxwaskqi" path="res://assets/spriteframes/sprF_playerLegs.tres" id="3_cxfou"]
-[ext_resource type="Script" path="res://scripts/Combat/ProjectileWeapon.cs" id="4_weapon"]
+[ext_resource type="Script" path="res://scripts/Combat/WeaponManager.cs" id="4_weapon"]
 [ext_resource type="PackedScene" uid="uid://b4v3jxqyqy7ym" path="res://scenes/effects/Bullet.tscn" id="5_bullet"]
 [ext_resource type="Script" path="res://scripts/Player/PlayerCamera.cs" id="7_camera"]
+[ext_resource type="Resource" path="res://data/weapons/pistol.tres" id="8_pistol"]
+[ext_resource type="Resource" path="res://data/weapons/shotgun.tres" id="9_shotgun"]
+[ext_resource type="Resource" path="res://data/weapons/uzi.tres" id="10_uzi"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_ddj42"]
 
@@ -46,9 +49,10 @@ z_index = -1
 sprite_frames = ExtResource("3_cxfou")
 animation = &"walkL"
 
-[node name="ProjectileWeapon" type="Node2D" parent="."]
+[node name="WeaponManager" type="Node2D" parent="."]
 script = ExtResource("4_weapon")
 BulletScene = ExtResource("5_bullet")
+StartingWeapons = Array[Resource("res://scripts/Combat/WeaponData.cs")]([ExtResource("8_pistol"), ExtResource("9_shotgun"), ExtResource("10_uzi")])
 
 [node name="PlayerCamera" type="Camera2D" parent="."]
 script = ExtResource("7_camera")

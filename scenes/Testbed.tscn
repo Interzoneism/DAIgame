@@ -900,7 +900,6 @@ script = ExtResource("6_gamemanager")
 script = ExtResource("4_daynight")
 
 [node name="GameHUD" type="CanvasLayer" parent="."]
-visible = false
 script = ExtResource("5_hud")
 
 [node name="Player" parent="." instance=ExtResource("1_player")]

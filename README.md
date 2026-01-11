@@ -6,7 +6,7 @@ A top-down shooter/survival game prototype built with Godot 4.x and C#.
 
 DAIgame is a **Hotline Miami-style** top-down shooter with survival mechanics. The game features:
 - Snappy WASD movement with mouse aim
-- Hitscan gunplay
+- Gunplay
 - Zombie enemies with chase AI
 - Day/night cycle with temperature mechanics
 - Deployable AI (DAI) system for building defenses
