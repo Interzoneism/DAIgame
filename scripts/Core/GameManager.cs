@@ -124,6 +124,10 @@ public partial class GameManager : Node
         Instance = this;
         ProcessMode = ProcessModeEnum.Always; // Keep processing even when paused
         _wasNight = IsNight;
+
+        // Create CursorManager as a child
+        var cursorManager = new CursorManager();
+        AddChild(cursorManager);
     }
 
     public override void _Process(double delta)

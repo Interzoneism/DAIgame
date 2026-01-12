@@ -257,6 +257,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 			_currentWalkAnim = "walk";
 			_currentAttackAnim = "attack_pistol";
 			_currentAttackFrameCount = 3;
+			CursorManager.Instance?.SetWeaponEquipped(false);
 			return;
 		}
 
@@ -278,6 +279,8 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		{
 			_bodySprite.Play(_currentWalkAnim);
 		}
+
+		CursorManager.Instance?.SetWeaponEquipped(true);
 	}
 
 	public override void _Process(double delta)
@@ -308,7 +311,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 
 		if (CurrentStamina < MaxStamina)
 		{
-			CurrentStamina = Mathf.Min(CurrentStamina + StaminaRegenRate * delta, MaxStamina);
+			CurrentStamina = Mathf.Min(CurrentStamina + (StaminaRegenRate * delta), MaxStamina);
 		}
 	}
 
@@ -406,7 +409,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		}
 
 		// Calculate how far past 90 degrees we are (0 at 90°, 1 at 180°)
-		var penaltyFactor = (angleBetween - Mathf.Pi / 2f) / (Mathf.Pi / 2f);
+		var penaltyFactor = (angleBetween - (Mathf.Pi / 2f)) / (Mathf.Pi / 2f);
 
 		// Base penalty scaled by how far backward we're moving
 		var basePenalty = MaxBackwardPenalty * penaltyFactor;
@@ -448,7 +451,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		}
 
 		// Calculate dexterity-modified turn speed
-		var dexModifier = 1f + (Dexterity - 10) * DexTurnSpeedScale;
+		var dexModifier = 1f + ((Dexterity - 10) * DexTurnSpeedScale);
 		var turnSpeed = BaseTurnSpeed * Mathf.Max(dexModifier, 0.2f);
 
 		// Calculate the shortest angular distance
@@ -461,7 +464,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 
 		var newAngle = Mathf.Abs(angleDiff) <= maxTurn
 			? targetAngle
-			: currentAngle + Mathf.Sign(angleDiff) * maxTurn;
+			: currentAngle + (Mathf.Sign(angleDiff) * maxTurn);
 
 		_bodyNode.Rotation = newAngle;
 		_aimDirection = new Vector2(Mathf.Cos(newAngle), Mathf.Sin(newAngle));

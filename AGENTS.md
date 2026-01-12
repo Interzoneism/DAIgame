@@ -14,7 +14,7 @@ We are building a **Hotline Miami-feel** top-down prototype.
 ### Must-have systems (in scope now)
 - Top-down movement (WASD), **snappy** (no floaty accel)
 - Mouse aim: player faces the mouse cursor at all times
-- Gunplay: hitscan primary; projectiles only when asked later
+- Gunplay: projectile system
 - Player health + healing item
 - Zombies (basic chase + melee damage)
 - Lighting: simple day/night tint; placeable lights later

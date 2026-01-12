@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=4 uid="uid://dxu03onavnehe"]
+[gd_scene load_steps=16 format=4 uid="uid://dxu03onavnehe"]
 
 [ext_resource type="PackedScene" uid="uid://bx3d1r6cnb3o1" path="res://scenes/character/Player.tscn" id="1_player"]
 [ext_resource type="PackedScene" uid="uid://qn8rxdg5vug5" path="res://scenes/character/Zombie.tscn" id="2_zombie"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/World/DayNightController.cs" id="4_daynight"]
 [ext_resource type="Script" path="res://scripts/UI/GameHUD.cs" id="5_hud"]
 [ext_resource type="Script" path="res://scripts/Core/GameManager.cs" id="6_gamemanager"]
+[ext_resource type="PackedScene" uid="uid://dvvn2hcmr6s1x" path="res://scenes/UI/InventoryScreen.tscn" id="7_inventory"]
 [ext_resource type="Texture2D" uid="uid://bp3gqy7g40oj5" path="res://assets/sprites/tiles_walls_orig.png" id="7_6bnfm"]
 [ext_resource type="Texture2D" uid="uid://c6e6t1gh48rxk" path="res://assets/sprites/tiles_floor_orig.png" id="8_yyggu"]
 [ext_resource type="Script" path="res://scripts/World/NavigationBuilder.cs" id="9_navbuilder"]
@@ -901,6 +902,8 @@ script = ExtResource("4_daynight")
 
 [node name="GameHUD" type="CanvasLayer" parent="."]
 script = ExtResource("5_hud")
+
+[node name="InventoryScreen" parent="." instance=ExtResource("7_inventory")]
 
 [node name="Player" parent="." instance=ExtResource("1_player")]
 position = Vector2(320, 180)

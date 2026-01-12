@@ -455,6 +455,9 @@ public partial class WeaponManager : Node2D
             return;
         }
 
+        // Set up exclusions so the attacker doesn't hit themselves
+        SetupMeleeExclusions();
+
         var attackDuration = weapon.TimeBetweenShots;
 
         if (weapon.MeleeHitType == MeleeHitType.Instant)
@@ -468,6 +471,48 @@ public partial class WeaponManager : Node2D
 
         EmitSignal(SignalName.MeleeAttackTriggered, weapon, attackDuration);
         GD.Print($"WeaponManager: Melee attack with {weapon.DisplayName} ({weapon.MeleeHitType})");
+    }
+
+    /// <summary>
+    /// Sets up melee exclusions based on the parent node (attacker).
+    /// </summary>
+    private void SetupMeleeExclusions()
+    {
+        if (MeleeHandler is null)
+        {
+            return;
+        }
+
+        var parent = GetParent();
+        if (parent is CharacterBody2D charBody)
+        {
+            // Build list of nodes to exclude (attacker and all children)
+            var excludeNodes = new HashSet<Node2D> { charBody };
+            CollectChildNode2Ds(charBody, excludeNodes);
+            MeleeHandler.SetAttackerExclusions(charBody.GetRid(), excludeNodes);
+        }
+        else if (parent is Node2D node2D)
+        {
+            var excludeNodes = new HashSet<Node2D> { node2D };
+            CollectChildNode2Ds(node2D, excludeNodes);
+            // For non-physics bodies, we pass an invalid RID but still exclude nodes
+            MeleeHandler.SetAttackerExclusions(new Rid(), excludeNodes);
+        }
+    }
+
+    /// <summary>
+    /// Recursively collects all Node2D children into the set.
+    /// </summary>
+    private static void CollectChildNode2Ds(Node parent, HashSet<Node2D> set)
+    {
+        foreach (var child in parent.GetChildren())
+        {
+            if (child is Node2D node2D)
+            {
+                set.Add(node2D);
+            }
+            CollectChildNode2Ds(child, set);
+        }
     }
 
     /// <summary>
@@ -535,6 +580,48 @@ public partial class WeaponManager : Node2D
     /// Gets the list of all weapons for UI/inventory purposes.
     /// </summary>
     public IReadOnlyList<WeaponData> GetWeapons() => _weapons;
+
+    /// <summary>
+    /// Replaces the current weapons list with the provided list and equips the given index.
+    /// Intended for inventory-driven equipment.
+    /// </summary>
+    public void SetWeapons(IReadOnlyList<WeaponData> weapons, int equipIndex)
+    {
+        CancelReload();
+        _weapons.Clear();
+        _ammoInMagazine.Clear();
+        CurrentWeaponIndex = -1;
+        IsReloading = false;
+        ReloadProgress = 0f;
+        _fireCooldown = 0f;
+        _reloadTimer = 0f;
+        _reloadDuration = 0f;
+        _recoilRecoveryTimer = 0f;
+        CurrentRecoilPenalty = 0f;
+        ShotsFiredInBurst = 0;
+
+        foreach (var weapon in weapons)
+        {
+            if (weapon is null)
+            {
+                continue;
+            }
+
+            _weapons.Add(weapon);
+            _ammoInMagazine.Add(weapon.MagazineSize);
+        }
+
+        if (_weapons.Count == 0)
+        {
+            EmitSignal(SignalName.WeaponChanged, null);
+            return;
+        }
+
+        CurrentWeaponIndex = Mathf.Clamp(equipIndex, 0, _weapons.Count - 1);
+        EmitSignal(SignalName.WeaponChanged, CurrentWeapon!);
+        EmitAmmoChanged();
+        GD.Print($"WeaponManager: Equipped {CurrentWeapon?.DisplayName ?? "nothing"}");
+    }
 
     /// <summary>
     /// Equips a weapon by index.

@@ -1,5 +1,6 @@
 namespace DAIgame.AI;
 
+using System.Collections.Generic;
 using DAIgame.Combat;
 using DAIgame.Core;
 using Godot;
@@ -72,11 +73,11 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 
 	/// <summary>
 	/// Scale of the player's push applied to zombies when walking into them.
-	/// </summary>
-	[Export]
-	public float PlayerPushFactor { get; set; } = 0.35f;
+    /// </summary>
+    [Export]
+    public float PlayerPushFactor { get; set; } = 0.35f;
 
-	/// <summary>
+    /// <summary>
 	/// Clamp on how fast the player's push can move zombies.
 	/// </summary>
 	[Export]
@@ -168,6 +169,7 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 	private bool _isKnockedDown;
 	private float _knockdownTimer;
 	private bool _isDying;
+	private bool _bloodSpawned;
 	private Tween? _impactRotationTween;
 
 	// Legs for separate leg animation (matches player behavior)
@@ -525,97 +527,160 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 			return;
 		}
 
-		var distanceToPlayer = GlobalPosition.DistanceTo(_player.GlobalPosition);
-		if (distanceToPlayer > AttackRange)
+		// Use smart hit detection - will hit closest target in attack direction
+		// This means if another zombie is between us and the player, we hit the zombie instead
+		var attackDirection = (_player.GlobalPosition - GlobalPosition).Normalized();
+		var hitResult = PerformSmartMeleeHit(attackDirection);
+
+		if (hitResult is not null)
 		{
-			GD.Print("ZombieController: Attack windup finished but player is out of range");
-			return;
+			var (target, hitPos, hitNormal) = hitResult.Value;
+			if (target is IDamageable damageable)
+			{
+				damageable.ApplyDamage(AttackDamage, GlobalPosition, hitPos, hitNormal);
+				_attackCooldownTimer = AttackCooldown;
+				GD.Print($"ZombieController: Hit {target.Name} for {AttackDamage} damage");
+
+				// Apply knockback if target supports it
+				if (target is IKnockbackable knockbackable)
+				{
+					knockbackable.ApplyKnockback(-hitNormal, KnockbackStrength * 0.5f);
+				}
+			}
 		}
-
-		// Try to damage the player through the interface
-		if (_player is IDamageable damageable)
+		else
 		{
-			var hitPos = _player.GlobalPosition;
-			var fromPos = GlobalPosition;
-			var hitNormal = (fromPos - hitPos).Normalized();
-
-			damageable.ApplyDamage(AttackDamage, fromPos, hitPos, hitNormal);
+			// Attack hit nothing or was blocked by a wall
+			GD.Print("ZombieController: Attack missed or was blocked");
 			_attackCooldownTimer = AttackCooldown;
 		}
 	}
 
 	/// <summary>
-	/// Casts rays in multiple directions to detect nearby walls and returns a steering
-	/// vector that pushes away from obstacles. This prevents zombies from getting stuck
-	/// on wall corners and edges.
-	/// </summary>
-	private Vector2 CalculateWallAvoidance()
-	{
-		var spaceState = GetWorld2D().DirectSpaceState;
-		if (spaceState is null)
-		{
-			return Vector2.Zero;
-		}
+	/// Performs a smart melee hit check using raycasting.
+	/// Returns the closest damageable target that isn't blocked by walls or other obstacles.
+    /// </summary>
+    /// <param name="attackDirection">Direction of the attack (normalized).</param>
+    /// <returns>Tuple of (target, hitPosition, hitNormal) or null if nothing was hit.</returns>
+    private (Node2D target, Vector2 hitPos, Vector2 hitNormal)? PerformSmartMeleeHit(Vector2 attackDirection)
+    {
+        var world = GetWorld2D();
+        if (world is null)
+        {
+            return null;
+        }
 
-		var avoidance = Vector2.Zero;
-		var selfRid = GetRid();
+        // Set up exclusions - exclude self
+        var excludeRids = new Godot.Collections.Array<Rid> { GetRid() };
+        var excludeNodes = new HashSet<Node2D> { this };
 
-		foreach (var dir in _avoidanceDirections)
-		{
-			var query = PhysicsRayQueryParameters2D.Create(
-				GlobalPosition,
-				GlobalPosition + (dir * WallAvoidanceDistance),
-				1 // Collision layer 1 = walls
-			);
-			query.Exclude = [selfRid];
+        // Also exclude any child nodes
+        CollectChildNode2Ds(this, excludeNodes);
 
-			var result = spaceState.IntersectRay(query);
-			if (result.Count > 0)
-			{
-				// Calculate how close the wall is (0 = at max distance, 1 = touching)
-				var hitPos = (Vector2)result["position"];
-				var distance = GlobalPosition.DistanceTo(hitPos);
-				var proximity = 1f - (distance / WallAvoidanceDistance);
+        var hit = MeleeHitDetection.FindClosestTargetInDirection(
+            world,
+            GlobalPosition,
+            attackDirection,
+            AttackRange,
+            excludeRids,
+            excludeNodes
+        );
 
-				// Push away from the wall, stronger when closer
-				avoidance -= dir * proximity * WallAvoidanceStrength;
-			}
-		}
+        if (hit.HasValue)
+        {
+            return (hit.Value.Target, hit.Value.HitPosition, hit.Value.HitNormal);
+        }
 
-		return avoidance;
-	}
+        return null;
+    }
 
-	private void SetState(ZombieState newState)
-	{
-		if (_state == newState)
-		{
-			return;
-		}
+    /// <summary>
+    /// Recursively collects all Node2D children into the set.
+    /// </summary>
+    private static void CollectChildNode2Ds(Node parent, HashSet<Node2D> set)
+    {
+        foreach (var child in parent.GetChildren())
+        {
+            if (child is Node2D node2D)
+            {
+                set.Add(node2D);
+            }
+            CollectChildNode2Ds(child, set);
+        }
+    }
 
-		_state = newState;
+    /// <summary>
+    /// Casts rays in multiple directions to detect nearby walls and returns a steering
+    /// vector that pushes away from obstacles. This prevents zombies from getting stuck
+    /// on wall corners and edges.
+    /// </summary>
+    private Vector2 CalculateWallAvoidance()
+    {
+        var spaceState = GetWorld2D().DirectSpaceState;
+        if (spaceState is null)
+        {
+            return Vector2.Zero;
+        }
 
-		// Update animation based on state
-		if (_sprite is null)
-		{
-			return;
-		}
+        var avoidance = Vector2.Zero;
+        var selfRid = GetRid();
 
-		// Do not interrupt the attack animation mid-swing
-		if (_isAttackAnimating)
-		{
-			GD.Print($"ZombieController: State changed to {_state} but attack animation is playing; will swap animations after it finishes");
-			return;
-		}
+        foreach (var dir in _avoidanceDirections)
+        {
+            var query = PhysicsRayQueryParameters2D.Create(
+                GlobalPosition,
+                GlobalPosition + (dir * WallAvoidanceDistance),
+                1 // Collision layer 1 = walls
+            );
+            query.Exclude = [selfRid];
 
-		switch (_state)
-		{
-			case ZombieState.Idle:
-				_sprite.Play("idle");
-				break;
-			case ZombieState.Chasing:
-				_sprite.Play("walk");
-				break;
-			case ZombieState.Attacking:
+            var result = spaceState.IntersectRay(query);
+            if (result.Count > 0)
+            {
+                // Calculate how close the wall is (0 = at max distance, 1 = touching)
+                var hitPos = (Vector2)result["position"];
+                var distance = GlobalPosition.DistanceTo(hitPos);
+                var proximity = 1f - (distance / WallAvoidanceDistance);
+
+                // Push away from the wall, stronger when closer
+                avoidance -= dir * proximity * WallAvoidanceStrength;
+            }
+        }
+
+        return avoidance;
+    }
+
+    private void SetState(ZombieState newState)
+    {
+        if (_state == newState)
+        {
+            return;
+        }
+
+        _state = newState;
+
+        // Update animation based on state
+        if (_sprite is null)
+        {
+            return;
+        }
+
+        // Do not interrupt the attack animation mid-swing
+        if (_isAttackAnimating)
+        {
+            GD.Print($"ZombieController: State changed to {_state} but attack animation is playing; will swap animations after it finishes");
+            return;
+        }
+
+        switch (_state)
+        {
+            case ZombieState.Idle:
+                _sprite.Play("idle");
+                break;
+            case ZombieState.Chasing:
+                _sprite.Play("walk");
+                break;
+            case ZombieState.Attacking:
 				// Don't force the body animation here - attack animation is
 				// started explicitly in PerformAttack() and resumed in
 				// OnAnimationFinished(). This prevents overriding the attack
@@ -983,93 +1048,101 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 		_impactRotationTween?.Kill();
 
 		// Calculate which side was hit relative to the body's facing direction
-		var toHit = hitPos - GlobalPosition;
-		var bodyForward = Vector2.Right.Rotated(_bodyNode.Rotation);
+        var toHit = hitPos - GlobalPosition;
+        var bodyForward = Vector2.Right.Rotated(_bodyNode.Rotation);
 
-		_ = bodyForward.Rotated(Mathf.Pi / 2f);
+        _ = bodyForward.Rotated(Mathf.Pi / 2f);
 
-		// Positive cross = hit from left, negative cross = hit from right
-		var cross = (bodyForward.X * toHit.Y) - (bodyForward.Y * toHit.X);
-		var rotationDirection = cross > 0 ? 1f : -1f;
+        // Positive cross = hit from left, negative cross = hit from right
+        var cross = (bodyForward.X * toHit.Y) - (bodyForward.Y * toHit.X);
+        var rotationDirection = cross > 0 ? 1f : -1f;
 
-		var impactAngle = Mathf.DegToRad(ImpactRotationDegrees) * rotationDirection;
-		var originalRotation = _bodyNode.Rotation;
-		var targetRotation = originalRotation + impactAngle;
+        var impactAngle = Mathf.DegToRad(ImpactRotationDegrees) * rotationDirection;
+        var originalRotation = _bodyNode.Rotation;
+        var targetRotation = originalRotation + impactAngle;
 
-		// Create tween: rotate to impact angle, then back to original
-		_impactRotationTween = CreateTween();
-		_impactRotationTween.SetProcessMode(Tween.TweenProcessMode.Physics);
-		_impactRotationTween.TweenProperty(_bodyNode, "rotation", targetRotation, ImpactRotationDuration * 0.3f)
-			.SetEase(Tween.EaseType.Out);
-		_impactRotationTween.TweenProperty(_bodyNode, "rotation", originalRotation, ImpactRotationDuration * 0.7f)
-			.SetEase(Tween.EaseType.InOut);
-	}
+        // Create tween: rotate to impact angle, then back to original
+        _impactRotationTween = CreateTween();
+        _impactRotationTween.SetProcessMode(Tween.TweenProcessMode.Physics);
+        _impactRotationTween.TweenProperty(_bodyNode, "rotation", targetRotation, ImpactRotationDuration * 0.3f)
+            .SetEase(Tween.EaseType.Out);
+        _impactRotationTween.TweenProperty(_bodyNode, "rotation", originalRotation, ImpactRotationDuration * 0.7f)
+            .SetEase(Tween.EaseType.InOut);
+    }
 
-	/// <summary>
-	/// Handles the dying state - continues knockback while death animation plays.
-	/// </summary>
-	private void HandleDying(float delta)
-	{
-		ApplyKnockbackDamp(delta);
-		Velocity = _knockbackVelocity;
-		MoveAndSlide();
-	}
+    /// <summary>
+    /// Handles the dying state - continues knockback while death animation plays.
+    /// </summary>
+    private void HandleDying(float delta)
+    {
+        // Spawn blood on first frame of dying (after knockback has been applied)
+        if (!_bloodSpawned)
+        {
+            SpawnBloodSpatter();
+            _bloodSpawned = true;
+            GD.Print($"ZombieController: Spawning blood with knockback velocity: {_knockbackVelocity}");
+        }
 
-	/// <summary>
-	/// Called when the death animation finishes.
-	/// </summary>
-	private void OnDeathAnimationFinished()
-	{
-		SpawnBloodSpatter();
-		SpawnCorpse();
-		QueueFree();
-	}
+        ApplyKnockbackDamp(delta);
+        Velocity = _knockbackVelocity;
+        MoveAndSlide();
+    }
 
-	private void Die()
-	{
-		if (_isDying)
-		{
-			return;
-		}
+    /// <summary>
+    /// Called when the death animation finishes.
+    /// </summary>
+    private void OnDeathAnimationFinished()
+    {
 
-		_isDying = true;
-		_impactRotationTween?.Kill();
+        SpawnCorpse();
+        QueueFree();
+    }
 
-		// Hide legs during death
-		if (_legsNode is not null)
-		{
-			_legsNode.Visible = false;
-		}
+    private void Die()
+    {
+        if (_isDying)
+        {
+            return;
+        }
 
-		// Play death animation (using corpse animation as death sequence)
-		if (_sprite is not null && _sprite.SpriteFrames is not null && _sprite.SpriteFrames.HasAnimation("death"))
-		{
-			_sprite.Stop();
-			_sprite.Play("death");
-			GD.Print("ZombieController: Playing death animation");
-		}
-		else
-		{
-			// No death animation available, die immediately
-			GD.Print("ZombieController: No death animation, dying immediately");
-			OnDeathAnimationFinished();
-		}
-	}
+        _isDying = true;
+        _impactRotationTween?.Kill();
 
-	private void SpawnCorpse()
-	{
-		if (CorpseScene is null)
-		{
-			return;
-		}
+        // Hide legs during death
+        if (_legsNode is not null)
+        {
+            _legsNode.Visible = false;
+        }
 
-		if (CorpseScene.Instantiate<Node2D>() is not Node2D corpse)
-		{
-			return;
-		}
+        // Play death animation (using corpse animation as death sequence)
+        if (_sprite is not null && _sprite.SpriteFrames is not null && _sprite.SpriteFrames.HasAnimation("death"))
+        {
+            _sprite.Stop();
+            _sprite.Play("death");
+            GD.Print("ZombieController: Playing death animation");
+        }
+        else
+        {
+            // No death animation available, die immediately
+            GD.Print("ZombieController: No death animation, dying immediately");
+            OnDeathAnimationFinished();
+        }
+    }
 
-		corpse.GlobalPosition = GlobalPosition;
-		corpse.GlobalRotation = _bodyNode?.GlobalRotation ?? GlobalRotation;
+    private void SpawnCorpse()
+    {
+        if (CorpseScene is null)
+        {
+            return;
+        }
+
+        if (CorpseScene.Instantiate<Node2D>() is not Node2D corpse)
+        {
+            return;
+        }
+
+        corpse.GlobalPosition = GlobalPosition;
+        corpse.GlobalRotation = _bodyNode?.GlobalRotation ?? GlobalRotation;
 
 		// If the corpse is a ZombieCorpse, set its velocity to the zombie's knockback velocity
 		if (corpse is ZombieCorpse zc)
@@ -1087,19 +1160,35 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 			return;
 		}
 
-		if (BloodSpatterScene.Instantiate() is not BloodSpatter spatter)
+		// First spatter: underneath corpse (default values)
+		if (BloodSpatterScene.Instantiate() is BloodSpatter spatter)
 		{
-			return;
+			spatter.GlobalPosition = GlobalPosition;
+			var sprayDirection = _lastDamageDirection;
+			if (sprayDirection == Vector2.Zero)
+			{
+				sprayDirection = Vector2.Down;
+			}
+
+			spatter.SprayDirection = sprayDirection;
+			spatter.InheritedVelocity = _knockbackVelocity;
+			spatter.ZIndex = 2; // Below corpse
+			GetTree().Root.AddChild(spatter);
+			GD.Print("ZombieController: Spawned blood spatter (underneath)");
 		}
 
-		spatter.GlobalPosition = GlobalPosition;
-		var sprayDirection = _lastDamageDirection;
-		if (sprayDirection == Vector2.Zero)
+		// Second spatter: on top of corpse with reduced particles and velocity
+		if (BloodSpatterScene.Instantiate() is BloodSpatter topSpatter)
 		{
-			sprayDirection = Vector2.Down;
+			topSpatter.GlobalPosition = GlobalPosition;
+			topSpatter.ParticleCount = GD.RandRange(1, 300);
+			topSpatter.PoolVelocityMax = (float)GD.RandRange(30f, 120f); // Lower pool velocity
+			topSpatter.SprayVelocityMax = (float)GD.RandRange(30f, 120f); // Lower spray velocity
+			topSpatter.SprayRatio = 0.5f; // Less directional spray
+			topSpatter.InheritedVelocity = _knockbackVelocity * 0.95f; // Less inherited velocity
+			topSpatter.ZIndex = 4; // Above corpse
+			GetTree().Root.AddChild(topSpatter);
+			GD.Print("ZombieController: Spawned blood spatter (on top of corpse)");
 		}
-
-		spatter.SprayDirection = sprayDirection;
-		GetTree().Root.AddChild(spatter);
 	}
 }

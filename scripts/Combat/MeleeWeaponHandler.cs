@@ -3,6 +3,7 @@ namespace DAIgame.Combat;
 using System.Collections.Generic;
 using DAIgame.Core;
 using Godot;
+using Godot.Collections;
 
 /// <summary>
 /// Handles melee weapon hit detection for both instant cone attacks and swing-based attacks.
@@ -58,7 +59,11 @@ public partial class MeleeWeaponHandler : Node
     private Vector2 _pendingDamageAimDirection;
     private WeaponData? _pendingDamageWeapon;
 
-    public override void _Process(double delta)
+    // Exclusion data for hit detection (attacker RID and nodes to ignore)
+    private Array<Rid>? _excludeRids;
+    private HashSet<Node2D>? _excludeNodes;
+
+    public override void _PhysicsProcess(double delta)
     {
         var dt = (float)delta;
 
@@ -74,7 +79,19 @@ public partial class MeleeWeaponHandler : Node
     }
 
     /// <summary>
+    /// Sets up the exclusion lists for hit detection. Call this before attacks.
+    /// </summary>
+    /// <param name="attackerRid">The RID of the attacker's collision body.</param>
+    /// <param name="attackerNodes">Nodes to exclude (attacker and children).</param>
+    public void SetAttackerExclusions(Rid attackerRid, HashSet<Node2D>? attackerNodes = null)
+    {
+        _excludeRids = [attackerRid];
+        _excludeNodes = attackerNodes;
+    }
+
+    /// <summary>
     /// Performs an instant melee attack - hits all targets within the cone immediately.
+    /// Uses smart hit detection: obstacles block attacks, only closest targets are hit.
     /// If weapon has DamageDelay > 0, delays the hit registration.
     /// </summary>
     /// <param name="origin">World position of the attacker.</param>
@@ -142,14 +159,23 @@ public partial class MeleeWeaponHandler : Node
 
     private void ApplyInstantDamage(Vector2 origin, Vector2 aimDirection, WeaponData weapon)
     {
-        var halfSpreadRad = Mathf.DegToRad(weapon.MeleeSpreadAngle / 2f);
-        var targets = FindTargetsInCone(origin, aimDirection, weapon.MeleeRange, halfSpreadRad);
-
-        GD.Print($"MeleeWeaponHandler: Instant attack - found {targets.Count} targets in cone ({weapon.MeleeSpreadAngle}° spread, {weapon.MeleeRange}px range)");
-
-        foreach (var target in targets)
+        var world = GetTree().Root.GetWorld2D();
+        if (world is null)
         {
-            ApplyDamageToTarget(target, origin, weapon);
+            GD.PrintErr("MeleeWeaponHandler: Could not get World2D for hit detection");
+            return;
+        }
+
+        var halfSpreadRad = Mathf.DegToRad(weapon.MeleeSpreadAngle / 2f);
+        var hits = MeleeHitDetection.FindTargetsInCone(
+            world, origin, aimDirection, weapon.MeleeRange, halfSpreadRad,
+            _excludeRids, _excludeNodes);
+
+        GD.Print($"MeleeWeaponHandler: Instant attack - found {hits.Count} unblocked targets in cone ({weapon.MeleeSpreadAngle}° spread, {weapon.MeleeRange}px range)");
+
+        foreach (var hit in hits)
+        {
+            ApplyDamageToTarget(hit.Target, origin, weapon, hit.HitPosition, hit.HitNormal);
         }
     }
 
@@ -225,10 +251,7 @@ public partial class MeleeWeaponHandler : Node
     /// <summary>
     /// Updates the swing origin position (call this each frame during swing if attacker moves).
     /// </summary>
-    public void UpdateSwingOrigin(Vector2 newOrigin)
-    {
-        _swingOrigin = newOrigin;
-    }
+    public void UpdateSwingOrigin(Vector2 newOrigin) => _swingOrigin = newOrigin;
 
     /// <summary>
     /// Cancels an in-progress swing attack (e.g., if player is stunned).
@@ -262,21 +285,28 @@ public partial class MeleeWeaponHandler : Node
         var currentSwingAngle = baseAngle + currentAngleOffset;
         var currentSwingDir = Vector2.FromAngle(currentSwingAngle);
 
-        // Check for hits at current swing position
-        // Use a narrow cone at the current swing angle (represents the weapon arc at this moment)
-        var swingSliceAngle = Mathf.DegToRad(15f); // Small angle for the current hit detection slice
-        var targets = FindTargetsInCone(_swingOrigin, currentSwingDir, _currentWeapon.MeleeRange, swingSliceAngle);
+        // Check for hits at current swing position using smart hit detection
+        var world = GetTree().Root.GetWorld2D();
+        if (world is null)
+        {
+            return;
+        }
 
-        foreach (var target in targets)
+        var swingSliceAngle = Mathf.DegToRad(15f); // Small angle for the current hit detection slice
+        var hits = MeleeHitDetection.FindTargetsInSwingSlice(
+            world, _swingOrigin, currentSwingDir, _currentWeapon.MeleeRange, swingSliceAngle,
+            _excludeRids, _excludeNodes);
+
+        foreach (var hit in hits)
         {
             // Only hit each target once per swing
-            if (_hitTargetsThisSwing.Contains(target.GetInstanceId()))
+            if (_hitTargetsThisSwing.Contains(hit.Target.GetInstanceId()))
             {
                 continue;
             }
 
-            _hitTargetsThisSwing.Add(target.GetInstanceId());
-            ApplyDamageToTarget(target, _swingOrigin, _currentWeapon);
+            _hitTargetsThisSwing.Add(hit.Target.GetInstanceId());
+            ApplyDamageToTarget(hit.Target, _swingOrigin, _currentWeapon, hit.HitPosition, hit.HitNormal);
         }
 
         // End swing when duration is complete
@@ -290,59 +320,18 @@ public partial class MeleeWeaponHandler : Node
         }
     }
 
-    private List<Node2D> FindTargetsInCone(Vector2 origin, Vector2 direction, float range, float halfAngleRad)
-    {
-        var result = new List<Node2D>();
-        var targets = GetTree().GetNodesInGroup("damageable");
-
-        foreach (var node in targets)
-        {
-            if (node is not Node2D target)
-            {
-                continue;
-            }
-
-            // Skip self (player shouldn't hit themselves)
-            if (target == GetParent() || target == GetParent()?.GetParent())
-            {
-                continue;
-            }
-
-            var toTarget = target.GlobalPosition - origin;
-            var distance = toTarget.Length();
-
-            if (distance > range)
-            {
-                continue;
-            }
-
-            // Check if target is within the cone angle
-            var angleToTarget = toTarget.Normalized().Angle();
-            var aimAngle = direction.Angle();
-            var angleDiff = Mathf.Abs(Mathf.AngleDifference(aimAngle, angleToTarget));
-
-            if (angleDiff <= halfAngleRad)
-            {
-                result.Add(target);
-            }
-        }
-
-        return result;
-    }
-
-    private void ApplyDamageToTarget(Node2D target, Vector2 origin, WeaponData weapon)
+    private void ApplyDamageToTarget(Node2D target, Vector2 origin, WeaponData weapon, Vector2 hitPos, Vector2 hitNormal)
     {
         if (target is IDamageable damageable)
         {
-            var hitPos = target.GlobalPosition;
-            var hitNormal = (hitPos - origin).Normalized();
             damageable.ApplyDamage(weapon.Damage, origin, hitPos, hitNormal);
             GD.Print($"MeleeWeaponHandler: Hit {target.Name} for {weapon.Damage} damage");
 
             // Apply knockback to any knockbackable target (zombies, destructibles, etc.)
             if (weapon.Knockback > 0f && target is IKnockbackable knockbackable)
             {
-                knockbackable.ApplyKnockback(hitNormal, weapon.Knockback);
+                var knockbackDir = (hitPos - origin).Normalized();
+                knockbackable.ApplyKnockback(knockbackDir, weapon.Knockback);
                 GD.Print($"MeleeWeaponHandler: Applied {weapon.Knockback} knockback to {target.Name}");
             }
 
