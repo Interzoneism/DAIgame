@@ -7,8 +7,17 @@ using Godot;
 public partial class InventorySlotControl : PanelContainer
 {
     private TextureRect? _icon;
+    private ColorRect? _categoryBackground;
     private StyleBoxFlat? _style;
     private ColorRect? _dropOverlay;
+    private bool _isDragging;
+
+    // Category colors (weapon, usable, ammo/misc, wearable)
+    private static readonly Color WeaponColor = new(0.6f, 0.2f, 0.2f, 0.7f);
+    private static readonly Color UsableColor = new(0.2f, 0.5f, 0.2f, 0.7f);
+    private static readonly Color AmmoColor = new(0.5f, 0.5f, 0.2f, 0.7f);
+    private static readonly Color WearableColor = new(0.2f, 0.3f, 0.6f, 0.7f);
+    private static readonly Color DefaultColor = new(0.3f, 0.3f, 0.3f, 0.5f);
 
     public PlayerInventory? Inventory { get; private set; }
     public InventorySlotType SlotType { get; private set; }
@@ -36,6 +45,16 @@ public partial class InventorySlotControl : PanelContainer
         margin.SetAnchorsPreset(LayoutPreset.FullRect);
         margin.MouseFilter = MouseFilterEnum.Ignore;
         AddChild(margin);
+
+        // Category background (drawn behind the icon)
+        _categoryBackground = new ColorRect
+        {
+            Color = DefaultColor,
+            MouseFilter = MouseFilterEnum.Ignore,
+            Visible = false
+        };
+        _categoryBackground.SetAnchorsPreset(LayoutPreset.FullRect);
+        margin.AddChild(_categoryBackground);
 
         _icon = new TextureRect
         {
@@ -116,13 +135,41 @@ public partial class InventorySlotControl : PanelContainer
         if (Inventory is null)
         {
             _icon.Texture = null;
+            _icon.Modulate = Colors.White;
             TooltipText = "";
+            UpdateCategoryBackground(null);
             return;
         }
 
         var item = Inventory.GetItem(SlotType, SlotIndex);
         _icon.Texture = item?.Icon;
+        _icon.Modulate = _isDragging ? new Color(1f, 1f, 1f, 0.5f) : Colors.White;
         TooltipText = item?.DisplayName ?? "";
+        UpdateCategoryBackground(item);
+    }
+
+    private void UpdateCategoryBackground(InventoryItem? item)
+    {
+        if (_categoryBackground is null)
+        {
+            return;
+        }
+
+        if (item is null)
+        {
+            _categoryBackground.Visible = false;
+            return;
+        }
+
+        _categoryBackground.Visible = true;
+        _categoryBackground.Color = item.ItemType switch
+        {
+            InventoryItemType.Weapon => WeaponColor,
+            InventoryItemType.Usable => UsableColor,
+            InventoryItemType.Outfit or InventoryItemType.Headwear or InventoryItemType.Shoes => WearableColor,
+            InventoryItemType.Misc => throw new System.NotImplementedException(),
+            _ => AmmoColor // Misc and any others
+        };
     }
 
     public override Variant _GetDragData(Vector2 atPosition)
@@ -140,12 +187,20 @@ public partial class InventorySlotControl : PanelContainer
 
         GD.Print($"InventorySlot: Starting drag of item '{item.DisplayName}' from {SlotType}[{SlotIndex}]");
 
+        // Set dragging state and reduce icon opacity
+        _isDragging = true;
+        if (_icon is not null)
+        {
+            _icon.Modulate = new Color(1f, 1f, 1f, 0.5f);
+        }
+
         var data = new Godot.Collections.Dictionary
         {
             { "from_slot", this }
         };
 
-        // Create composite preview: cursor + item
+        // Create composite preview: cursor + item centered at 48x48
+        const float iconSize = 48f;
         var holdingCursor = GD.Load<Texture2D>("res://assets/cursor/holding_item.png");
         var cursorSize = new Vector2(holdingCursor.GetWidth(), holdingCursor.GetHeight());
 
@@ -163,17 +218,20 @@ public partial class InventorySlotControl : PanelContainer
         cursorRect.SetAnchorsPreset(LayoutPreset.FullRect);
         previewContainer.AddChild(cursorRect);
 
-        // Add item icon on top
+        // Add item icon on top, centered within the cursor area
         var itemRect = new TextureRect
         {
             Texture = item.Icon,
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
-            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            CustomMinimumSize = new Vector2(iconSize, iconSize),
+            // Center the item icon within the preview
+            Position = new Vector2((cursorSize.X - iconSize) / 2f, (cursorSize.Y - iconSize) / 2f),
+            Size = new Vector2(iconSize, iconSize)
         };
-        itemRect.SetAnchorsPreset(LayoutPreset.FullRect);
         previewContainer.AddChild(itemRect);
 
-        // Position so cursor center aligns with mouse position
+        // Position so the center of the 48x48 icon aligns with mouse position
         previewContainer.Position = new Vector2(-cursorSize.X / 2f, -cursorSize.Y / 2f);
         SetDragPreview(previewContainer);
 
@@ -278,6 +336,13 @@ public partial class InventorySlotControl : PanelContainer
             return;
         }
 
+        // Reset dragging state on source slot
+        fromSlot._isDragging = false;
+        if (fromSlot._icon is not null)
+        {
+            fromSlot._icon.Modulate = Colors.White;
+        }
+
         fromSlot.Inventory.TryMoveItem(fromSlot.SlotType, fromSlot.SlotIndex, SlotType, SlotIndex);
         CursorManager.Instance?.SetHoldingItem(false);
         GD.Print($"InventorySlot: Dropped item into {SlotType}[{SlotIndex}]");
@@ -294,6 +359,13 @@ public partial class InventorySlotControl : PanelContainer
         // Handle drag cancel (e.g., pressing ESC or dropping outside valid area)
         if (what == NotificationDragEnd)
         {
+            // Reset dragging state and restore icon opacity
+            _isDragging = false;
+            if (_icon is not null)
+            {
+                _icon.Modulate = Colors.White;
+            }
+
             CursorManager.Instance?.SetHoldingItem(false);
             if (_dropOverlay is not null)
             {

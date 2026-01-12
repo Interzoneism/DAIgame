@@ -21,14 +21,17 @@ public partial class CursorManager : Node
     private Texture2D? _hoverCursor;
     private Texture2D? _holdingCursor;
     private ImageTexture? _transparentCursor;
-
-    private bool _inventoryOpen;
     private bool _weaponEquipped;
     private bool _hoveringItem;
     private bool _holdingItem;
 
     // Track current cursor to avoid redundant updates
     private Texture2D? _currentCursor;
+
+    /// <summary>
+    /// Whether the inventory screen is currently open.
+    /// </summary>
+    public bool IsInventoryOpen { get; private set; }
 
     public static CursorManager? Instance { get; private set; }
 
@@ -66,7 +69,7 @@ public partial class CursorManager : Node
     /// </summary>
     public void SetInventoryOpen(bool open)
     {
-        _inventoryOpen = open;
+        IsInventoryOpen = open;
         UpdateCursor();
     }
 
@@ -133,7 +136,7 @@ public partial class CursorManager : Node
             cursorTexture = _hoverCursor;
             hotspot = _hoverHotspot;
         }
-        else if (_inventoryOpen && _pointerCursor is not null)
+        else if (IsInventoryOpen && _pointerCursor is not null)
         {
             cursorTexture = _pointerCursor;
             hotspot = PointerHotspot;
