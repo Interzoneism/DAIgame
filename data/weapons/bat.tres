@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/Combat/WeaponData.cs" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+DisplayName = "Baseball Bat"
+WeaponId = "bat"
+Damage = 35.0
+FireRate = 3.0
+PelletCount = 1
+SpreadAngle = 0.0
+FireMode = 0
+KnockbackPlayer = 0.0
+Knockback = 150.0
+Stability = 0.0
+Recoil = 0.0
+RecoilRecovery = 0.3
+RecoilWarmup = 1
+AnimationSuffix = "bat"
+MaxAmmo = -1
+MagazineSize = -1
+ReloadTime = 0.0
+ProjectileSpeed = 0.0
+SpawnOffsetX = 0.0
+SpawnOffsetY = 0.0
+ReloadMode = 0
+IsMelee = true
+MeleeHitType = 1
+MeleeRange = 50.0
+MeleeSpreadAngle = 90.0
+SwingStartAngle = 45.0
+SwingEndAngle = -45.0
+DamageDelay = 0.15
+StaminaCost = 25.0

@@ -5,11 +5,11 @@
 [ext_resource type="SpriteFrames" uid="uid://d1g8cuxwaskqi" path="res://assets/spriteframes/sprF_playerLegs.tres" id="3_cxfou"]
 [ext_resource type="Script" path="res://scripts/Combat/WeaponManager.cs" id="4_weapon"]
 [ext_resource type="PackedScene" uid="uid://b4v3jxqyqy7ym" path="res://scenes/effects/Bullet.tscn" id="5_bullet"]
-[ext_resource type="Script" path="res://scripts/Combat/WeaponData.cs" id="6_ucrv5"]
 [ext_resource type="Script" path="res://scripts/Player/PlayerCamera.cs" id="7_camera"]
 [ext_resource type="Resource" path="res://data/weapons/pistol.tres" id="8_pistol"]
 [ext_resource type="Resource" path="res://data/weapons/shotgun.tres" id="9_shotgun"]
 [ext_resource type="Resource" path="res://data/weapons/uzi.tres" id="10_uzi"]
+[ext_resource type="Resource" path="res://data/weapons/bat.tres" id="11_bat"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_ddj42"]
 
@@ -52,7 +52,8 @@ animation = &"walkL"
 [node name="WeaponManager" type="Node2D" parent="."]
 script = ExtResource("4_weapon")
 BulletScene = ExtResource("5_bullet")
-StartingWeapons = Array[ExtResource("6_ucrv5")]([ExtResource("8_pistol"), ExtResource("9_shotgun"), ExtResource("10_uzi")])
+StartingWeapons = [ExtResource("8_pistol"), ExtResource("9_shotgun"), ExtResource("10_uzi"), ExtResource("11_bat")]
 
 [node name="PlayerCamera" type="Camera2D" parent="."]
+zoom = Vector2(2, 2)
 script = ExtResource("7_camera")

@@ -105,6 +105,8 @@ public partial class PlayerCamera : Camera2D
 
     // Smooth the offset
     _targetOffset = _targetOffset.Lerp(desiredOffset, SmoothSpeed * delta);
+
+    // Apply look-ahead offset
     Offset = _targetOffset;
   }
 
@@ -124,8 +126,8 @@ public partial class PlayerCamera : Camera2D
     Zoom = new Vector2(_targetZoom, _targetZoom);
   }
 
-    /// <summary>
-    /// Get the current target zoom level.
-    /// </summary>
-    public float GetTargetZoom() => _targetZoom;
+  /// <summary>
+  /// Get the current target zoom level.
+  /// </summary>
+  public float GetTargetZoom() => _targetZoom;
 }

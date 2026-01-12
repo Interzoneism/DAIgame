@@ -6,13 +6,15 @@ using DAIgame.Player;
 using Godot;
 
 /// <summary>
-/// Game HUD displaying health, cold exposure, weapon info, and other vital stats.
+/// Game HUD displaying health, stamina, cold exposure, weapon info, and other vital stats.
 /// </summary>
 public partial class GameHUD : CanvasLayer
 {
     private ProgressBar? _healthBar;
+    private ProgressBar? _staminaBar;
     private ProgressBar? _coldBar;
     private Label? _healthLabel;
+    private Label? _staminaLabel;
     private Label? _coldLabel;
     private Label? _timeLabel;
     private Label? _slowMoLabel;
@@ -74,6 +76,24 @@ public partial class GameHUD : CanvasLayer
 
         _healthLabel = new Label { Text = "100/100" };
         healthContainer.AddChild(_healthLabel);
+
+        // Stamina bar
+        var staminaContainer = new HBoxContainer();
+        container.AddChild(staminaContainer);
+
+        var staminaIcon = new Label { Text = "⚡", CustomMinimumSize = new Vector2(20, 0) };
+        staminaContainer.AddChild(staminaIcon);
+
+        _staminaBar = new ProgressBar
+        {
+            CustomMinimumSize = new Vector2(120, 16),
+            Value = 100,
+            ShowPercentage = false
+        };
+        staminaContainer.AddChild(_staminaBar);
+
+        _staminaLabel = new Label { Text = "100%" };
+        staminaContainer.AddChild(_staminaLabel);
 
         // Cold bar
         var coldContainer = new HBoxContainer();
@@ -272,6 +292,23 @@ public partial class GameHUD : CanvasLayer
         // Color the bar based on health
         _ = _healthBar.GetThemeStylebox("fill") as StyleBoxFlat;
         _healthBar.Modulate = healthPercent > 50 ? new Color(0.2f, 0.8f, 0.2f) : healthPercent > 25 ? new Color(1f, 0.8f, 0.2f) : new Color(1f, 0.2f, 0.2f);
+
+        UpdateStaminaDisplay();
+    }
+
+    private void UpdateStaminaDisplay()
+    {
+        if (_player is null || _staminaBar is null || _staminaLabel is null)
+        {
+            return;
+        }
+
+        var staminaPercent = _player.CurrentStamina / _player.MaxStamina * 100f;
+        _staminaBar.Value = staminaPercent;
+        _staminaLabel.Text = $"{Mathf.CeilToInt(staminaPercent)}%";
+
+        // Color the bar based on stamina level (yellow when full, orange when low)
+        _staminaBar.Modulate = staminaPercent > 50 ? new Color(1f, 0.9f, 0.2f) : staminaPercent > 25 ? new Color(1f, 0.6f, 0.2f) : new Color(1f, 0.4f, 0.2f);
     }
 
     private void UpdateColdDisplay()

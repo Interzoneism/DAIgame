@@ -22,6 +22,13 @@ public partial class WeaponManager : Node2D
     public delegate void WeaponFiredEventHandler(WeaponData weapon);
 
     /// <summary>
+    /// Signal emitted when a melee attack is triggered (instant or swing start).
+    /// Includes attack duration for swing synchronization.
+    /// </summary>
+    [Signal]
+    public delegate void MeleeAttackTriggeredEventHandler(WeaponData weapon, float attackDuration);
+
+    /// <summary>
     /// Signal emitted when ammo count changes.
     /// </summary>
     [Signal]
@@ -75,19 +82,58 @@ public partial class WeaponManager : Node2D
     public float ReloadProgress { get; private set; }
 
     /// <summary>
-    /// Returns true if the weapon can fire (not on cooldown, has ammo, not reloading).
+    /// Returns true if the weapon can fire (not on cooldown, has ammo for ranged, not reloading).
+    /// Melee weapons don't require ammo.
     /// </summary>
-    public bool CanFire => _fireCooldown <= 0f && CurrentWeapon is not null && CurrentAmmo > 0 && !IsReloading;
+    public bool CanFire
+    {
+        get
+        {
+            if (_fireCooldown > 0f || CurrentWeapon is null)
+            {
+                return false;
+            }
+
+            // Melee weapons don't need ammo
+            if (CurrentWeapon.IsMelee)
+            {
+                return true;
+            }
+
+            // Ranged weapons need ammo and not reloading
+            return CurrentAmmo > 0 && !IsReloading;
+        }
+    }
+
+    /// <summary>
+    /// Gets the MeleeWeaponHandler child node if available.
+    /// </summary>
+    public MeleeWeaponHandler? MeleeHandler { get; private set; }
+
+    /// <summary>
+    /// Current accuracy penalty from accumulated recoil (0 = no penalty, grows with each shot).
+    /// </summary>
+    public float CurrentRecoilPenalty { get; private set; }
+
+    /// <summary>
+    /// Number of shots fired within the recovery window (for warmup tracking).
+    /// </summary>
+    public int ShotsFiredInBurst { get; private set; }
 
     private readonly List<WeaponData> _weapons = [];
     private readonly List<int> _ammoInMagazine = [];
     private float _fireCooldown;
     private float _reloadTimer;
     private float _reloadDuration;
+    private float _recoilRecoveryTimer;
     private RandomNumberGenerator _rng = new();
 
     public override void _Ready()
     {
+        // Create melee handler as a child node
+        MeleeHandler = new MeleeWeaponHandler();
+        AddChild(MeleeHandler);
+
         // Add starting weapons for testing
         foreach (var weapon in StartingWeapons)
         {
@@ -117,6 +163,39 @@ public partial class WeaponManager : Node2D
         }
 
         UpdateReload(dt);
+        UpdateRecoilRecovery(dt);
+    }
+
+    private void UpdateRecoilRecovery(float delta)
+    {
+        if (_recoilRecoveryTimer <= 0f)
+        {
+            return;
+        }
+
+        _recoilRecoveryTimer -= delta;
+
+        if (_recoilRecoveryTimer <= 0f)
+        {
+            // Reset recoil state when recovery timer expires
+            CurrentRecoilPenalty = 0f;
+            ShotsFiredInBurst = 0;
+        }
+    }
+
+    private void UpdateRecoilOnFire(WeaponData weapon)
+    {
+        // Reset recovery timer on each shot
+        _recoilRecoveryTimer = weapon.RecoilRecovery;
+
+        // Increment shot counter
+        ShotsFiredInBurst++;
+
+        // Apply recoil penalty only after warmup shots
+        if (ShotsFiredInBurst > weapon.RecoilWarmup)
+        {
+            CurrentRecoilPenalty += weapon.Recoil;
+        }
     }
 
     private void UpdateReload(float delta)
@@ -343,18 +422,52 @@ public partial class WeaponManager : Node2D
 
         var weapon = CurrentWeapon;
 
-        // Consume ammo
-        _ammoInMagazine[CurrentWeaponIndex]--;
-        EmitAmmoChanged();
-
         // Set cooldown based on fire rate
-        _fireCooldown = 1f / weapon.FireRate;
+        _fireCooldown = weapon.TimeBetweenShots;
 
-        // Fire projectiles
-        FireProjectiles(origin, direction, weapon);
+        // Handle melee vs ranged weapons
+        if (weapon.IsMelee)
+        {
+            PerformMeleeAttack(origin, direction, weapon);
+        }
+        else
+        {
+            // Consume ammo for ranged weapons
+            _ammoInMagazine[CurrentWeaponIndex]--;
+            EmitAmmoChanged();
 
-        EmitSignal(SignalName.WeaponFired, weapon);
+            // Fire projectiles
+            FireProjectiles(origin, direction, weapon);
+            EmitSignal(SignalName.WeaponFired, weapon);
+        }
+
         return true;
+    }
+
+    /// <summary>
+    /// Performs a melee attack using the MeleeWeaponHandler.
+    /// </summary>
+    private void PerformMeleeAttack(Vector2 origin, Vector2 direction, WeaponData weapon)
+    {
+        if (MeleeHandler is null)
+        {
+            GD.PrintErr("WeaponManager: MeleeHandler is null, cannot perform melee attack!");
+            return;
+        }
+
+        var attackDuration = weapon.TimeBetweenShots;
+
+        if (weapon.MeleeHitType == MeleeHitType.Instant)
+        {
+            MeleeHandler.PerformInstantAttack(origin, direction, weapon);
+        }
+        else // Swing
+        {
+            MeleeHandler.StartSwingAttack(origin, direction, weapon, attackDuration);
+        }
+
+        EmitSignal(SignalName.MeleeAttackTriggered, weapon, attackDuration);
+        GD.Print($"WeaponManager: Melee attack with {weapon.DisplayName} ({weapon.MeleeHitType})");
     }
 
     /// <summary>
@@ -370,6 +483,9 @@ public partial class WeaponManager : Node2D
             return;
         }
 
+        // Update recoil state before firing
+        UpdateRecoilOnFire(weapon);
+
         // Calculate spawn position with offset
         // X offset is forward (in direction), Y offset is perpendicular (left of direction)
         var forward = direction.Normalized();
@@ -377,21 +493,22 @@ public partial class WeaponManager : Node2D
         var spawnPos = origin + (forward * weapon.SpawnOffsetX) + (perpendicular * weapon.SpawnOffsetY);
 
         var pelletCount = weapon.PelletCount;
-        var spreadRad = Mathf.DegToRad(weapon.SpreadAngle);
+
+        // Calculate effective spread: base stability + accumulated recoil penalty
+        // Stability is the base inaccuracy in degrees, recoil adds more inaccuracy per shot
+        var effectiveSpreadDeg = weapon.Stability + CurrentRecoilPenalty;
+        // Also add weapon's SpreadAngle for shotgun-style spread on top
+        var totalSpreadDeg = effectiveSpreadDeg + weapon.SpreadAngle;
+        var spreadRad = Mathf.DegToRad(totalSpreadDeg);
         var baseAngle = direction.Angle();
 
         for (var i = 0; i < pelletCount; i++)
         {
             // Calculate spread angle for this pellet
             float pelletAngle;
-            if (spreadRad > 0f && pelletCount > 1)
+            if (spreadRad > 0f)
             {
                 // Randomize within the spread cone
-                pelletAngle = baseAngle + _rng.RandfRange(-spreadRad / 2f, spreadRad / 2f);
-            }
-            else if (spreadRad > 0f)
-            {
-                // Single pellet with spread (slight inaccuracy)
                 pelletAngle = baseAngle + _rng.RandfRange(-spreadRad / 2f, spreadRad / 2f);
             }
             else
@@ -407,10 +524,11 @@ public partial class WeaponManager : Node2D
             bullet.GlobalPosition = spawnPos;
             bullet.Damage = weapon.Damage;
             bullet.Speed = weapon.ProjectileSpeed;
+            bullet.Knockback = weapon.Knockback;
             bullet.Initialize(pelletDir);
         }
 
-        GD.Print($"WeaponManager: Fired {pelletCount} projectile(s) from {weapon.DisplayName}");
+        GD.Print($"WeaponManager: Fired {pelletCount} projectile(s) from {weapon.DisplayName} (spread: {totalSpreadDeg:F1}° = stability {weapon.Stability:F1}° + recoil {CurrentRecoilPenalty:F1}° + weapon spread {weapon.SpreadAngle:F1}°)");
     }
 
     /// <summary>

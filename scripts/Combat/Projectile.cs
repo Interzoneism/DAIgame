@@ -1,5 +1,6 @@
 namespace DAIgame.Combat;
 
+using DAIgame.AI;
 using DAIgame.Core;
 using Godot;
 
@@ -19,6 +20,12 @@ public partial class Projectile : Area2D
     /// </summary>
     [Export]
     public float Damage { get; set; } = 25f;
+
+    /// <summary>
+    /// Knockback force applied to enemies on hit.
+    /// </summary>
+    [Export]
+    public float Knockback { get; set; } = 0f;
 
     /// <summary>
     /// Maximum lifetime in seconds before the bullet despawns.
@@ -139,6 +146,16 @@ public partial class Projectile : Area2D
         {
             SpawnBloodParticles(hitPosition, hitNormal);
             damageable.ApplyDamage(Damage, GlobalPosition - (_direction * 10f), hitPosition, hitNormal);
+
+            // Apply knockback to zombies
+            if (Knockback > 0f)
+            {
+                var zombie = FindZombieTarget(body);
+                if (zombie is not null)
+                {
+                    zombie.ApplyExternalKnockback(_direction, Knockback);
+                }
+            }
         }
         else
         {
@@ -197,6 +214,29 @@ public partial class Projectile : Area2D
             if (parent is IDamageable parentDamageable)
             {
                 return parentDamageable;
+            }
+            parent = parent.GetParent();
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Finds the nearest zombie controller by walking up the node hierarchy.
+    /// </summary>
+    private static ZombieController? FindZombieTarget(Node node)
+    {
+        if (node is ZombieController zombie)
+        {
+            return zombie;
+        }
+
+        var parent = node.GetParent();
+        while (parent is not null)
+        {
+            if (parent is ZombieController parentZombie)
+            {
+                return parentZombie;
             }
             parent = parent.GetParent();
         }

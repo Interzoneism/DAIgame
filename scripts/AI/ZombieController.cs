@@ -1,4 +1,5 @@
 namespace DAIgame.AI;
+
 using DAIgame.Combat;
 using DAIgame.Core;
 using Godot;
@@ -71,11 +72,11 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 
 	/// <summary>
 	/// Scale of the player's push applied to zombies when walking into them.
-    /// </summary>
-    [Export]
-    public float PlayerPushFactor { get; set; } = 0.35f;
+	/// </summary>
+	[Export]
+	public float PlayerPushFactor { get; set; } = 0.35f;
 
-    /// <summary>
+	/// <summary>
 	/// Clamp on how fast the player's push can move zombies.
 	/// </summary>
 	[Export]
@@ -156,8 +157,8 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 	private float _knockdownTimer;
 	private bool _isDying;
 	private Tween? _impactRotationTween;
-	private static PackedScene? s_corpseScene;
-	private static PackedScene? s_bloodSpatterScene;
+	private static PackedScene? _corpseScene;
+	private static PackedScene? _bloodSpatterScene;
 
 	// Legs for separate leg animation (matches player behavior)
 	private Node2D? _legsNode;
@@ -165,7 +166,7 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 	private Vector2 _lastMoveDir = Vector2.Down;
 
 	// Raycast directions for wall avoidance (8 directions)
-	private static readonly Vector2[] s_avoidanceDirections =
+	private static readonly Vector2[] _avoidanceDirections =
 	[
 		Vector2.Right,
 		Vector2.Right.Rotated(Mathf.Pi / 4f),
@@ -252,9 +253,9 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 			GD.PrintErr("ZombieController._Ready: Legs node not found - leg rotation will not update");
 		}
 
-		s_corpseScene ??= GD.Load<PackedScene>("res://scripts/Combat/ZombieCorpse.tscn");
+		_corpseScene ??= GD.Load<PackedScene>("res://scripts/Combat/ZombieCorpse.tscn");
 
-		s_bloodSpatterScene ??= GD.Load<PackedScene>("res://scenes/effects/BloodSpatter.tscn");
+		_bloodSpatterScene ??= GD.Load<PackedScene>("res://scenes/effects/BloodSpatter.tscn");
 	}
 
 	public override void _PhysicsProcess(double delta)
@@ -543,7 +544,7 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 		var avoidance = Vector2.Zero;
 		var selfRid = GetRid();
 
-		foreach (var dir in s_avoidanceDirections)
+		foreach (var dir in _avoidanceDirections)
 		{
 			var query = PhysicsRayQueryParameters2D.Create(
 				GlobalPosition,
@@ -600,369 +601,369 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 				break;
 			case ZombieState.Attacking:
 				// Don't force the body animation here - attack animation is
-                // started explicitly in PerformAttack() and resumed in
-                // OnAnimationFinished(). This prevents overriding the attack
-                // playback and avoids leaving the sprite paused on a single frame.
-                break;
-        }
-    }
+				// started explicitly in PerformAttack() and resumed in
+				// OnAnimationFinished(). This prevents overriding the attack
+				// playback and avoids leaving the sprite paused on a single frame.
+				break;
+		}
+	}
 
-    private void OnAnimationFinished()
-    {
-        if (_sprite is null)
-        {
-            return;
-        }
+	private void OnAnimationFinished()
+	{
+		if (_sprite is null)
+		{
+			return;
+		}
 
-        // Handle death animation finishing
-        if (_sprite.Animation == "death" && _isDying)
-        {
-            OnDeathAnimationFinished();
-            return;
-        }
+		// Handle death animation finishing
+		if (_sprite.Animation == "death" && _isDying)
+		{
+			OnDeathAnimationFinished();
+			return;
+		}
 
-        // Handle lean animation finishing (after knockdown recovery)
-        if (_sprite.Animation == "lean")
-        {
-            // Return to appropriate state animation
-            if (_state == ZombieState.Chasing)
-            {
-                _sprite.Play("walk");
-                GD.Print("ZombieController: Lean finished, resuming walk");
-            }
-            else
-            {
-                _sprite.Play("idle");
-                GD.Print("ZombieController: Lean finished, returning to idle");
-            }
-            return;
-        }
+		// Handle lean animation finishing (after knockdown recovery)
+		if (_sprite.Animation == "lean")
+		{
+			// Return to appropriate state animation
+			if (_state == ZombieState.Chasing)
+			{
+				_sprite.Play("walk");
+				GD.Print("ZombieController: Lean finished, resuming walk");
+			}
+			else
+			{
+				_sprite.Play("idle");
+				GD.Print("ZombieController: Lean finished, returning to idle");
+			}
+			return;
+		}
 
-        // If the attack animation finished, resume an appropriate animation
-        if (_sprite.Animation == "attack")
-        {
-            _isAttackAnimating = false;
+		// If the attack animation finished, resume an appropriate animation
+		if (_sprite.Animation == "attack")
+		{
+			_isAttackAnimating = false;
 
-            if (_state == ZombieState.Chasing)
-            {
-                _sprite.Play("walk");
-                GD.Print("ZombieController: Attack finished, resuming walk");
-            }
-            else
-            {
-                _sprite.Play("idle");
-                GD.Print("ZombieController: Attack finished, returning to idle");
-            }
-        }
-    }
+			if (_state == ZombieState.Chasing)
+			{
+				_sprite.Play("walk");
+				GD.Print("ZombieController: Attack finished, resuming walk");
+			}
+			else
+			{
+				_sprite.Play("idle");
+				GD.Print("ZombieController: Attack finished, returning to idle");
+			}
+		}
+	}
 
-    private void SetBodyIdleIfPossible()
-    {
-        if (_sprite is null || _isAttackAnimating)
-        {
-            return;
-        }
+	private void SetBodyIdleIfPossible()
+	{
+		if (_sprite is null || _isAttackAnimating)
+		{
+			return;
+		}
 
-        if (_sprite.Animation != "idle")
-        {
-            _sprite.Play("idle");
-        }
-    }
+		if (_sprite.Animation != "idle")
+		{
+			_sprite.Play("idle");
+		}
+	}
 
-    private Vector2 GetPlayerSeparationVelocity()
-    {
-        if (_player is null)
-        {
-            _wasTooCloseToPlayer = false;
-            return Vector2.Zero;
-        }
+	private Vector2 GetPlayerSeparationVelocity()
+	{
+		if (_player is null)
+		{
+			_wasTooCloseToPlayer = false;
+			return Vector2.Zero;
+		}
 
-        var toPlayer = _player.GlobalPosition - GlobalPosition;
-        var distance = toPlayer.Length();
+		var toPlayer = _player.GlobalPosition - GlobalPosition;
+		var distance = toPlayer.Length();
 
-        if (distance <= 0.001f)
-        {
-            if (!_wasTooCloseToPlayer)
-            {
-                GD.Print("ZombieController: Overlapping player, applying separation push");
-                _wasTooCloseToPlayer = true;
-            }
-            return Vector2.Right * SeparationPushStrength;
-        }
+		if (distance <= 0.001f)
+		{
+			if (!_wasTooCloseToPlayer)
+			{
+				GD.Print("ZombieController: Overlapping player, applying separation push");
+				_wasTooCloseToPlayer = true;
+			}
+			return Vector2.Right * SeparationPushStrength;
+		}
 
-        if (distance < MinPlayerSeparation)
-        {
-            if (!_wasTooCloseToPlayer)
-            {
-                GD.Print("ZombieController: Too close to player, applying separation push");
-                _wasTooCloseToPlayer = true;
-            }
+		if (distance < MinPlayerSeparation)
+		{
+			if (!_wasTooCloseToPlayer)
+			{
+				GD.Print("ZombieController: Too close to player, applying separation push");
+				_wasTooCloseToPlayer = true;
+			}
 
-            var away = -toPlayer / distance;
-            var strength = (MinPlayerSeparation - distance) / MinPlayerSeparation;
-            var separation = away * SeparationPushStrength * strength;
-            return separation + GetPlayerPushVelocity(distance);
-        }
+			var away = -toPlayer / distance;
+			var strength = (MinPlayerSeparation - distance) / MinPlayerSeparation;
+			var separation = away * SeparationPushStrength * strength;
+			return separation + GetPlayerPushVelocity(distance);
+		}
 
-        _wasTooCloseToPlayer = false;
-        return GetPlayerPushVelocity(distance);
-    }
+		_wasTooCloseToPlayer = false;
+		return GetPlayerPushVelocity(distance);
+	}
 
-    private Vector2 GetPlayerPushVelocity(float distanceToPlayer)
-    {
-        if (_player is not CharacterBody2D playerBody)
-        {
-            _wasPlayerPushing = false;
-            return Vector2.Zero;
-        }
+	private Vector2 GetPlayerPushVelocity(float distanceToPlayer)
+	{
+		if (_player is not CharacterBody2D playerBody)
+		{
+			_wasPlayerPushing = false;
+			return Vector2.Zero;
+		}
 
-        if (distanceToPlayer > MinPlayerSeparation + PlayerPushRange)
-        {
-            _wasPlayerPushing = false;
-            return Vector2.Zero;
-        }
+		if (distanceToPlayer > MinPlayerSeparation + PlayerPushRange)
+		{
+			_wasPlayerPushing = false;
+			return Vector2.Zero;
+		}
 
-        var toZombie = GlobalPosition - _player.GlobalPosition;
-        if (toZombie.LengthSquared() <= 0.0001f)
-        {
-            _wasPlayerPushing = false;
-            return Vector2.Zero;
-        }
+		var toZombie = GlobalPosition - _player.GlobalPosition;
+		if (toZombie.LengthSquared() <= 0.0001f)
+		{
+			_wasPlayerPushing = false;
+			return Vector2.Zero;
+		}
 
-        var pushDir = toZombie.Normalized();
-        var towardSpeed = Mathf.Max(0f, playerBody.Velocity.Dot(pushDir));
-        if (towardSpeed <= 0.01f)
-        {
-            _wasPlayerPushing = false;
-            return Vector2.Zero;
-        }
+		var pushDir = toZombie.Normalized();
+		var towardSpeed = Mathf.Max(0f, playerBody.Velocity.Dot(pushDir));
+		if (towardSpeed <= 0.01f)
+		{
+			_wasPlayerPushing = false;
+			return Vector2.Zero;
+		}
 
-        if (!_wasPlayerPushing)
-        {
-            GD.Print("ZombieController: Player pushing zombie, applying push");
-            _wasPlayerPushing = true;
-        }
+		if (!_wasPlayerPushing)
+		{
+			GD.Print("ZombieController: Player pushing zombie, applying push");
+			_wasPlayerPushing = true;
+		}
 
-        var pushSpeed = Mathf.Min(towardSpeed * PlayerPushFactor, MaxPlayerPushSpeed);
-        return pushDir * pushSpeed;
-    }
+		var pushSpeed = Mathf.Min(towardSpeed * PlayerPushFactor, MaxPlayerPushSpeed);
+		return pushDir * pushSpeed;
+	}
 
-    private void UpdatePlayerReference()
-    {
-        if (_player is not null && IsInstanceValid(_player))
-        {
-            return;
-        }
+	private void UpdatePlayerReference()
+	{
+		if (_player is not null && IsInstanceValid(_player))
+		{
+			return;
+		}
 
-        var players = GetTree().GetNodesInGroup("player");
-        _player = players.Count > 0 ? players[0] as Node2D : null;
-    }
+		var players = GetTree().GetNodesInGroup("player");
+		_player = players.Count > 0 ? players[0] as Node2D : null;
+	}
 
-    /// <summary>
-    /// Damage interface implementation.
-    /// </summary>
-    public void ApplyDamage(float amount, Vector2 fromPos, Vector2 hitPos, Vector2 hitNormal)
-    {
-        var hitDirection = (hitPos - fromPos).Normalized();
-        if (hitDirection != Vector2.Zero)
-        {
-            _lastDamageDirection = hitDirection;
-        }
+	/// <summary>
+	/// Damage interface implementation.
+	/// </summary>
+	public void ApplyDamage(float amount, Vector2 fromPos, Vector2 hitPos, Vector2 hitNormal)
+	{
+		var hitDirection = (hitPos - fromPos).Normalized();
+		if (hitDirection != Vector2.Zero)
+		{
+			_lastDamageDirection = hitDirection;
+		}
 
-        _currentHealth -= amount;
+		_currentHealth -= amount;
 
-        // Apply knockback in the direction the bullet/attack traveled
-        var knockbackDir = hitDirection;
-        if (knockbackDir == Vector2.Zero)
-        {
-            // Fallback: push away from damage source center
-            knockbackDir = (GlobalPosition - fromPos).Normalized();
-            if (knockbackDir == Vector2.Zero)
-            {
-                knockbackDir = Vector2.Right;
-            }
-            GD.PrintErr("ZombieController.ApplyDamage: hitDirection is zero, using fallback knockback calculation");
-        }
-        _knockbackVelocity = knockbackDir * KnockbackStrength;
+		// Knockback is now applied externally via ApplyExternalKnockback
+		// from weapons/projectiles, not from inherent zombie property
 
-        // Trigger hit flash
-        _hitFlashTimer = HitFlashDuration;
-        ApplyHitFlash();
+		// Trigger hit flash
+		_hitFlashTimer = HitFlashDuration;
+		ApplyHitFlash();
 
-        // Aggro on taking damage
-        _hasSeenPlayer = true;
+		// Aggro on taking damage
+		_hasSeenPlayer = true;
 
-        if (_currentHealth <= 0f)
-        {
-            Die();
-        }
-        else
-        {
-            // Non-lethal hit - apply impact rotation to body
-            ApplyImpactRotation(hitPos);
-        }
-    }
+		if (_currentHealth <= 0f)
+		{
+			Die();
+		}
+		else
+		{
+			// Non-lethal hit - apply impact rotation to body
+			ApplyImpactRotation(hitPos);
+		}
+	}
 
-    /// <summary>
-    /// Applies knockdown state to the zombie.
-    /// Zombie plays "lean" animation, stops at frame 3, and cannot move for knockdown duration.
-    /// </summary>
-    public void ApplyKnockdown()
-    {
-        if (_isKnockedDown)
-        {
-            return;
-        }
+	/// <summary>
+	/// Applies external knockback force to the zombie (from melee hits, explosions, etc.).
+	/// </summary>
+	/// <param name="direction">Direction of the knockback (normalized).</param>
+	/// <param name="strength">Strength of the knockback force.</param>
+	public void ApplyExternalKnockback(Vector2 direction, float strength)
+	{
+		_knockbackVelocity += direction * strength;
+		GD.Print($"ZombieController: Applied external knockback - dir: {direction}, strength: {strength}");
+	}
 
-        _isKnockedDown = true;
-        _knockdownTimer = KnockdownDuration;
-        _attackPending = false;
-        _isAttackAnimating = false;
+	/// <summary>
+	/// Applies knockdown state to the zombie.
+	/// Zombie plays "lean" animation, stops at frame 3, and cannot move for knockdown duration.
+	/// </summary>
+	public void ApplyKnockdown()
+	{
+		if (_isKnockedDown)
+		{
+			return;
+		}
 
-        if (_sprite is not null)
-        {
-            _sprite.Stop();
-            _sprite.Play("lean");
-        }
+		_isKnockedDown = true;
+		_knockdownTimer = KnockdownDuration;
+		_attackPending = false;
+		_isAttackAnimating = false;
 
-        // Stop legs
-        if (_legsSprite is not null)
-        {
-            _legsSprite.Stop();
-            _legsSprite.Frame = 0;
-        }
+		if (_sprite is not null)
+		{
+			_sprite.Stop();
+			_sprite.Play("lean");
+		}
 
-        GD.Print("Zombie knocked down!");
-    }
+		// Stop legs
+		if (_legsSprite is not null)
+		{
+			_legsSprite.Stop();
+			_legsSprite.Frame = 0;
+		}
 
-    private void HandleKnockdown(float delta)
-    {
-        ApplyKnockbackDamp(delta);
-        UpdateHitFlash(delta);
+		GD.Print("Zombie knocked down!");
+	}
 
-        // Keep zombie still during knockdown
-        Velocity = _knockbackVelocity;
-        MoveAndSlide();
+	private void HandleKnockdown(float delta)
+	{
+		ApplyKnockbackDamp(delta);
+		UpdateHitFlash(delta);
 
-        // Stop sprite at frame 3 once reached
-        if (_sprite is not null && _sprite.Animation == "lean" && _sprite.Frame >= 3)
-        {
-            _sprite.Stop();
-            _sprite.Frame = 3;
-        }
+		// Keep zombie still during knockdown
+		Velocity = _knockbackVelocity;
+		MoveAndSlide();
 
-        _knockdownTimer -= delta;
-        if (_knockdownTimer <= 0f)
-        {
-            EndKnockdown();
-        }
-    }
+		// Stop sprite at frame 3 once reached
+		if (_sprite is not null && _sprite.Animation == "lean" && _sprite.Frame >= 3)
+		{
+			_sprite.Stop();
+			_sprite.Frame = 3;
+		}
 
-    private void EndKnockdown()
-    {
-        _isKnockedDown = false;
+		_knockdownTimer -= delta;
+		if (_knockdownTimer <= 0f)
+		{
+			EndKnockdown();
+		}
+	}
 
-        // Resume lean animation to finish naturally
-        _sprite?.Play("lean");
+	private void EndKnockdown()
+	{
+		_isKnockedDown = false;
 
-        GD.Print("Zombie knockdown ended, resuming");
-    }
+		// Resume lean animation to finish naturally
+		_sprite?.Play("lean");
 
-    private void ApplyKnockbackDamp(float delta)
-    {
-        if (_knockbackVelocity == Vector2.Zero)
-        {
-            return;
-        }
+		GD.Print("Zombie knockdown ended, resuming");
+	}
 
-        _knockbackVelocity = _knockbackVelocity.MoveToward(Vector2.Zero, KnockbackDamp * delta);
-    }
+	private void ApplyKnockbackDamp(float delta)
+	{
+		if (_knockbackVelocity == Vector2.Zero)
+		{
+			return;
+		}
 
-    private void ApplyHitFlash()
-    {
-        if (_sprite is null)
-        {
-            return;
-        }
+		_knockbackVelocity = _knockbackVelocity.MoveToward(Vector2.Zero, KnockbackDamp * delta);
+	}
 
-        // White flash overlay effect for body
-        _sprite.Modulate = new Color(2f, 2f, 2f, 1f);
+	private void ApplyHitFlash()
+	{
+		if (_sprite is null)
+		{
+			return;
+		}
 
-        // Mirror the flash on the legs if present
-        if (_legsSprite is not null)
-        {
-            _legsSprite.Modulate = new Color(2f, 2f, 2f, 1f);
-        }
-    }
+		// White flash overlay effect for body
+		_sprite.Modulate = new Color(2f, 2f, 2f, 1f);
 
-    private void UpdateHitFlash(float delta)
-    {
-        if (_hitFlashTimer <= 0f)
-        {
-            return;
-        }
+		// Mirror the flash on the legs if present
+		if (_legsSprite is not null)
+		{
+			_legsSprite.Modulate = new Color(2f, 2f, 2f, 1f);
+		}
+	}
 
-        _hitFlashTimer -= delta;
+	private void UpdateHitFlash(float delta)
+	{
+		if (_hitFlashTimer <= 0f)
+		{
+			return;
+		}
 
-        if (_hitFlashTimer <= 0f && _sprite is not null)
-        {
-            _sprite.Modulate = Colors.White;
-            if (_legsSprite is not null)
-            {
-                _legsSprite.Modulate = Colors.White;
-            }
-        }
-    }
+		_hitFlashTimer -= delta;
 
-    /// <summary>
-    /// Rotate the legs to face the movement direction (snapped to eight directions) and
-    /// pause/play the walk animation depending on whether the zombie is moving.
-    /// </summary>
-    private void UpdateLegsFacing(Vector2 movementDir, bool isMoving)
-    {
-        if (_legsNode is null)
-        {
-            return;
-        }
+		if (_hitFlashTimer <= 0f && _sprite is not null)
+		{
+			_sprite.Modulate = Colors.White;
+			if (_legsSprite is not null)
+			{
+				_legsSprite.Modulate = Colors.White;
+			}
+		}
+	}
 
-        var dir = movementDir.LengthSquared() > 0 ? movementDir : _lastMoveDir;
-        var snappedAngle = SnapToEightDirections(dir.Angle());
-        _legsNode.Rotation = snappedAngle;
+	/// <summary>
+	/// Rotate the legs to face the movement direction (snapped to eight directions) and
+	/// pause/play the walk animation depending on whether the zombie is moving.
+	/// </summary>
+	private void UpdateLegsFacing(Vector2 movementDir, bool isMoving)
+	{
+		if (_legsNode is null)
+		{
+			return;
+		}
 
-        if (_legsSprite is not null)
-        {
-            // Flip horizontally when moving left
-            _legsSprite.FlipH = dir.X < 0;
+		var dir = movementDir.LengthSquared() > 0 ? movementDir : _lastMoveDir;
+		var snappedAngle = SnapToEightDirections(dir.Angle());
+		_legsNode.Rotation = snappedAngle;
 
-            if (!isMoving)
-            {
-                _legsSprite.Stop();
-            }
-            else
-            {
-                _legsSprite.Play();
-            }
-        }
-    }
+		if (_legsSprite is not null)
+		{
+			// Flip horizontally when moving left
+			_legsSprite.FlipH = dir.X < 0;
 
-    private static float SnapToEightDirections(float angle)
-    {
-        var step = Mathf.Pi / 4f;
-        return Mathf.Round(angle / step) * step;
-    }
+			if (!isMoving)
+			{
+				_legsSprite.Stop();
+			}
+			else
+			{
+				_legsSprite.Play();
+			}
+		}
+	}
 
-    /// <summary>
-    /// Applies a brief rotation to the body towards the hit direction to simulate impact force.
-    /// </summary>
-    private void ApplyImpactRotation(Vector2 hitPos)
-    {
-        if (_bodyNode is null)
-        {
-            return;
-        }
+	private static float SnapToEightDirections(float angle)
+	{
+		var step = Mathf.Pi / 4f;
+		return Mathf.Round(angle / step) * step;
+	}
 
-        // Cancel any existing impact rotation tween
-        _impactRotationTween?.Kill();
+	/// <summary>
+	/// Applies a brief rotation to the body towards the hit direction to simulate impact force.
+	/// </summary>
+	private void ApplyImpactRotation(Vector2 hitPos)
+	{
+		if (_bodyNode is null)
+		{
+			return;
+		}
+
+		// Cancel any existing impact rotation tween
+		_impactRotationTween?.Kill();
 
 		// Calculate which side was hit relative to the body's facing direction
 		var toHit = hitPos - GlobalPosition;
@@ -1040,12 +1041,12 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 
 	private void SpawnCorpse()
 	{
-		if (s_corpseScene is null)
+		if (_corpseScene is null)
 		{
 			return;
 		}
 
-		if (s_corpseScene.Instantiate<Node2D>() is not Node2D corpse)
+		if (_corpseScene.Instantiate<Node2D>() is not Node2D corpse)
 		{
 			return;
 		}
@@ -1054,34 +1055,34 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 		corpse.GlobalRotation = _bodyNode?.GlobalRotation ?? GlobalRotation;
 
 		// If the corpse is a ZombieCorpse, set its velocity to the zombie's knockback velocity
-        if (corpse is ZombieCorpse zc)
-        {
-            zc.SetVelocity(_knockbackVelocity);
-        }
+		if (corpse is ZombieCorpse zc)
+		{
+			zc.SetVelocity(_knockbackVelocity);
+		}
 
-        GetTree().Root.AddChild(corpse);
-    }
+		GetTree().Root.AddChild(corpse);
+	}
 
-    private void SpawnBloodSpatter()
-    {
-        if (s_bloodSpatterScene is null)
-        {
-            return;
-        }
+	private void SpawnBloodSpatter()
+	{
+		if (_bloodSpatterScene is null)
+		{
+			return;
+		}
 
-        if (s_bloodSpatterScene.Instantiate() is not BloodSpatter spatter)
-        {
-            return;
-        }
+		if (_bloodSpatterScene.Instantiate() is not BloodSpatter spatter)
+		{
+			return;
+		}
 
-        spatter.GlobalPosition = GlobalPosition;
-        var sprayDirection = _lastDamageDirection;
-        if (sprayDirection == Vector2.Zero)
-        {
-            sprayDirection = Vector2.Down;
-        }
+		spatter.GlobalPosition = GlobalPosition;
+		var sprayDirection = _lastDamageDirection;
+		if (sprayDirection == Vector2.Zero)
+		{
+			sprayDirection = Vector2.Down;
+		}
 
-        spatter.SprayDirection = sprayDirection;
-        GetTree().Root.AddChild(spatter);
-    }
+		spatter.SprayDirection = sprayDirection;
+		GetTree().Root.AddChild(spatter);
+	}
 }

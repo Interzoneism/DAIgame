@@ -3,6 +3,22 @@ namespace DAIgame.Combat;
 using Godot;
 
 /// <summary>
+/// Defines how a melee weapon registers hits.
+/// </summary>
+public enum MeleeHitType
+{
+    /// <summary>
+    /// Hits register instantly in a cone in front of the player.
+    /// </summary>
+    Instant,
+
+    /// <summary>
+    /// Hits register over time during a swing arc (e.g., bat swings from +45° to -45°).
+    /// </summary>
+    Swing
+}
+
+/// <summary>
 /// Defines the firing behavior of a weapon.
 /// </summary>
 public enum WeaponFireMode
@@ -66,6 +82,11 @@ public partial class WeaponData : Resource
     public float FireRate { get; set; } = 2f;
 
     /// <summary>
+    /// Time between shots in seconds (derived from FireRate).
+    /// </summary>
+    public float TimeBetweenShots => FireRate > 0f ? 1f / FireRate : 1f;
+
+    /// <summary>
     /// Number of projectiles fired per shot (1 for pistol/uzi, multiple for shotgun).
     /// </summary>
     [Export]
@@ -84,10 +105,42 @@ public partial class WeaponData : Resource
     public WeaponFireMode FireMode { get; set; } = WeaponFireMode.SemiAuto;
 
     /// <summary>
-    /// Knockback force applied to the player when firing.
+    /// Knockback force applied to the player when firing (recoil movement).
     /// </summary>
     [Export]
-    public float KnockbackStrength { get; set; } = 50f;
+    public float KnockbackPlayer { get; set; } = 50f;
+
+    /// <summary>
+    /// Knockback force applied to enemies when hit.
+    /// </summary>
+    [Export]
+    public float Knockback { get; set; } = 150f;
+
+    /// <summary>
+    /// Base stability in degrees - maximum spread when accuracy is at 0%.
+    /// At 100% accuracy, bullets go straight. At 0% accuracy, bullets spread up to Stability degrees.
+    /// </summary>
+    [Export]
+    public float Stability { get; set; } = 10f;
+
+    /// <summary>
+    /// Amount accuracy decreases per shot after warmup (percentage points).
+    /// </summary>
+    [Export]
+    public float Recoil { get; set; } = 5f;
+
+    /// <summary>
+    /// Time in seconds after last shot before accuracy starts recovering.
+    /// </summary>
+    [Export]
+    public float RecoilRecovery { get; set; } = 0.3f;
+
+    /// <summary>
+    /// Number of shots within RecoilRecovery time before recoil starts applying.
+    /// First N shots have no accuracy penalty.
+    /// </summary>
+    [Export]
+    public int RecoilWarmup { get; set; } = 1;
 
     /// <summary>
     /// Animation name suffix for this weapon (e.g., "pistol" for walk_pistol, attack_pistol).
@@ -137,6 +190,60 @@ public partial class WeaponData : Resource
     [Export]
     public WeaponReloadMode ReloadMode { get; set; } = WeaponReloadMode.Magazine;
 
+    // ========== MELEE WEAPON PROPERTIES ==========
+
+    /// <summary>
+    /// If true, this weapon is a melee weapon and uses melee attack logic.
+    /// </summary>
+    [Export]
+    public bool IsMelee { get; set; } = false;
+
+    /// <summary>
+    /// How melee hits are registered (instant cone or swing arc over time).
+    /// </summary>
+    [Export]
+    public MeleeHitType MeleeHitType { get; set; } = MeleeHitType.Instant;
+
+    /// <summary>
+    /// Range of the melee attack in pixels.
+    /// </summary>
+    [Export]
+    public float MeleeRange { get; set; } = 40f;
+
+    /// <summary>
+    /// For Instant type: cone angle in degrees (total spread, centered on aim direction).
+    /// For Swing type: not used directly (use SwingStartAngle/SwingEndAngle instead).
+    /// </summary>
+    [Export]
+    public float MeleeSpreadAngle { get; set; } = 90f;
+
+    /// <summary>
+    /// For Swing type: angle offset (in degrees) from aim direction where swing starts.
+    /// Positive = clockwise from aim direction.
+    /// </summary>
+    [Export]
+    public float SwingStartAngle { get; set; } = 45f;
+
+    /// <summary>
+    /// For Swing type: angle offset (in degrees) from aim direction where swing ends.
+    /// Negative = counter-clockwise from aim direction.
+    /// </summary>
+    [Export]
+    public float SwingEndAngle { get; set; } = -45f;
+
+    /// <summary>
+    /// Delay in seconds before damage is applied after attack starts (for melee weapons).
+    /// Similar to zombie attack windup. 0 = instant damage at attack start.
+    /// </summary>
+    [Export]
+    public float DamageDelay { get; set; } = 0f;
+
+    /// <summary>
+    /// Stamina cost per attack (for melee weapons). 0 = no stamina cost.
+    /// </summary>
+    [Export]
+    public float StaminaCost { get; set; } = 0f;
+
     /// <summary>
     /// Creates a deep copy of this weapon data for inventory use.
     /// </summary>
@@ -151,7 +258,12 @@ public partial class WeaponData : Resource
             PelletCount = PelletCount,
             SpreadAngle = SpreadAngle,
             FireMode = FireMode,
-            KnockbackStrength = KnockbackStrength,
+            KnockbackPlayer = KnockbackPlayer,
+            Knockback = Knockback,
+            Stability = Stability,
+            Recoil = Recoil,
+            RecoilRecovery = RecoilRecovery,
+            RecoilWarmup = RecoilWarmup,
             AnimationSuffix = AnimationSuffix,
             MaxAmmo = MaxAmmo,
             MagazineSize = MagazineSize,
@@ -159,7 +271,15 @@ public partial class WeaponData : Resource
             ProjectileSpeed = ProjectileSpeed,
             SpawnOffsetX = SpawnOffsetX,
             SpawnOffsetY = SpawnOffsetY,
-            ReloadMode = ReloadMode
+            ReloadMode = ReloadMode,
+            IsMelee = IsMelee,
+            MeleeHitType = MeleeHitType,
+            MeleeRange = MeleeRange,
+            MeleeSpreadAngle = MeleeSpreadAngle,
+            SwingStartAngle = SwingStartAngle,
+            SwingEndAngle = SwingEndAngle,
+            DamageDelay = DamageDelay,
+            StaminaCost = StaminaCost
         };
     }
 

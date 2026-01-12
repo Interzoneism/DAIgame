@@ -23,7 +23,7 @@ public partial class BloodSpatter : Node2D
     [Export]
     public float SprayRatio { get; set; } = 0.3f;
 
-    private static ImageTexture? s_bloodTexture;
+    private static ImageTexture? _bloodTexture;
     private readonly List<BloodParticle> _activeParticles = [];
 
     private sealed class BloodParticle
@@ -167,9 +167,9 @@ public partial class BloodSpatter : Node2D
 
     private static ImageTexture GetSharedTexture()
     {
-        if (s_bloodTexture is not null)
+        if (_bloodTexture is not null)
         {
-            return s_bloodTexture;
+            return _bloodTexture;
         }
 
         const int textureSize = 4;
@@ -194,9 +194,9 @@ public partial class BloodSpatter : Node2D
             }
         }
 
-        s_bloodTexture = ImageTexture.CreateFromImage(image);
+        _bloodTexture = ImageTexture.CreateFromImage(image);
         image.Dispose();
 
-        return s_bloodTexture;
+        return _bloodTexture;
     }
 }

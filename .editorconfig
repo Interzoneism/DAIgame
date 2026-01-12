@@ -154,7 +154,7 @@ dotnet_style_prefer_simplified_boolean_expressions = true:warning
 
 # Null-checking preferences
 dotnet_style_coalesce_expression = true:warning
-dotnet_style_null_propagation = true:warning
+dotnet_style_null_propagation = true:none
 dotnet_style_prefer_is_null_check_over_reference_equality_method = true:warning
 
 # Unused parameters and methods
@@ -420,3 +420,9 @@ dotnet_diagnostic.IDE0032.severity = none
 
 # IDE0055: Fix formatting
 dotnet_diagnostic.IDE0055.severity = none
+
+# IDE1006: Naming Styles
+dotnet_diagnostic.IDE1006.severity = none
+
+# IDE0031: Use null propagation
+dotnet_diagnostic.IDE0031.severity = none

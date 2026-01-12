@@ -14,18 +14,14 @@ public class IDamageableTest : TestClass
     public IDamageableTest(Node testScene) : base(testScene) { }
 
     [Test]
-    public void PlayerController_ImplementsIDamageable()
-    {
+    public void PlayerController_ImplementsIDamageable() =>
         // Verify PlayerController implements IDamageable
         typeof(PlayerController).GetInterface(nameof(IDamageable)).ShouldNotBeNull();
-    }
 
     [Test]
-    public void ZombieController_ImplementsIDamageable()
-    {
+    public void ZombieController_ImplementsIDamageable() =>
         // Verify ZombieController implements IDamageable
         typeof(ZombieController).GetInterface(nameof(IDamageable)).ShouldNotBeNull();
-    }
 
     [Test]
     public void IDamageable_HasCorrectSignature()
