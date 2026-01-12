@@ -123,6 +123,18 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 	[Export]
 	public float KnockdownDuration { get; set; } = 2f;
 
+	/// <summary>
+	/// Maximum rotation angle (in degrees) applied to body on impact.
+	/// </summary>
+	[Export]
+	public float ImpactRotationDegrees { get; set; } = 30f;
+
+	/// <summary>
+	/// Duration of impact rotation effect in seconds.
+	/// </summary>
+	[Export]
+	public float ImpactRotationDuration { get; set; } = 0.3f;
+
 	private Node2D? _bodyNode;
 	private AnimatedSprite2D? _sprite;
 	private NavigationAgent2D? _navAgent;
@@ -142,6 +154,8 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 	private bool _wasPlayerPushing;
 	private bool _isKnockedDown;
 	private float _knockdownTimer;
+	private bool _isDying;
+	private Tween? _impactRotationTween;
 	private static PackedScene? s_corpseScene;
 	private static PackedScene? s_bloodSpatterScene;
 
@@ -206,6 +220,15 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 				{
 					GD.PrintErr("ZombieController._Ready: lean animation not found in SpriteFrames");
 				}
+
+				if (_sprite.SpriteFrames.HasAnimation("death"))
+				{
+					_sprite.SpriteFrames.SetAnimationLoop("death", false);
+				}
+				else
+				{
+					GD.PrintErr("ZombieController._Ready: corpse animation not found in SpriteFrames");
+				}
 			}
 			else
 			{
@@ -236,6 +259,13 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 
 	public override void _PhysicsProcess(double delta)
 	{
+		// Handle dying state - play death animation, then spawn corpse
+		if (_isDying)
+		{
+			HandleDying((float)delta);
+			return;
+		}
+
 		// Handle knockdown state - locked and cannot move
 		if (_isKnockedDown)
 		{
@@ -584,6 +614,13 @@ public partial class ZombieController : CharacterBody2D, IDamageable
             return;
         }
 
+        // Handle death animation finishing
+        if (_sprite.Animation == "death" && _isDying)
+        {
+            OnDeathAnimationFinished();
+            return;
+        }
+
         // Handle lean animation finishing (after knockdown recovery)
         if (_sprite.Animation == "lean")
         {
@@ -759,6 +796,11 @@ public partial class ZombieController : CharacterBody2D, IDamageable
         {
             Die();
         }
+        else
+        {
+            // Non-lethal hit - apply impact rotation to body
+            ApplyImpactRotation(hitPos);
+        }
     }
 
     /// <summary>
@@ -909,57 +951,137 @@ public partial class ZombieController : CharacterBody2D, IDamageable
         return Mathf.Round(angle / step) * step;
     }
 
-    private void Die()
+    /// <summary>
+    /// Applies a brief rotation to the body towards the hit direction to simulate impact force.
+    /// </summary>
+    private void ApplyImpactRotation(Vector2 hitPos)
     {
-        SpawnBloodSpatter();
-        SpawnCorpse();
-        QueueFree();
-    }
-
-    private void SpawnCorpse()
-    {
-        if (s_corpseScene is null)
+        if (_bodyNode is null)
         {
             return;
         }
 
-        if (s_corpseScene.Instantiate<Node2D>() is not Node2D corpse)
-        {
-            return;
-        }
+        // Cancel any existing impact rotation tween
+        _impactRotationTween?.Kill();
 
-        corpse.GlobalPosition = GlobalPosition;
-        corpse.GlobalRotation = _bodyNode?.GlobalRotation ?? GlobalRotation;
+		// Calculate which side was hit relative to the body's facing direction
+		var toHit = hitPos - GlobalPosition;
+		var bodyForward = Vector2.Right.Rotated(_bodyNode.Rotation);
+
+		_ = bodyForward.Rotated(Mathf.Pi / 2f);
+
+		// Positive cross = hit from left, negative cross = hit from right
+		var cross = (bodyForward.X * toHit.Y) - (bodyForward.Y * toHit.X);
+		var rotationDirection = cross > 0 ? 1f : -1f;
+
+		var impactAngle = Mathf.DegToRad(ImpactRotationDegrees) * rotationDirection;
+		var originalRotation = _bodyNode.Rotation;
+		var targetRotation = originalRotation + impactAngle;
+
+		// Create tween: rotate to impact angle, then back to original
+		_impactRotationTween = CreateTween();
+		_impactRotationTween.SetProcessMode(Tween.TweenProcessMode.Physics);
+		_impactRotationTween.TweenProperty(_bodyNode, "rotation", targetRotation, ImpactRotationDuration * 0.3f)
+			.SetEase(Tween.EaseType.Out);
+		_impactRotationTween.TweenProperty(_bodyNode, "rotation", originalRotation, ImpactRotationDuration * 0.7f)
+			.SetEase(Tween.EaseType.InOut);
+	}
+
+	/// <summary>
+	/// Handles the dying state - continues knockback while death animation plays.
+	/// </summary>
+	private void HandleDying(float delta)
+	{
+		ApplyKnockbackDamp(delta);
+		Velocity = _knockbackVelocity;
+		MoveAndSlide();
+	}
+
+	/// <summary>
+	/// Called when the death animation finishes.
+	/// </summary>
+	private void OnDeathAnimationFinished()
+	{
+		SpawnBloodSpatter();
+		SpawnCorpse();
+		QueueFree();
+	}
+
+	private void Die()
+	{
+		if (_isDying)
+		{
+			return;
+		}
+
+		_isDying = true;
+		_impactRotationTween?.Kill();
+
+		// Hide legs during death
+		if (_legsNode is not null)
+		{
+			_legsNode.Visible = false;
+		}
+
+		// Play death animation (using corpse animation as death sequence)
+		if (_sprite is not null && _sprite.SpriteFrames is not null && _sprite.SpriteFrames.HasAnimation("death"))
+		{
+			_sprite.Stop();
+			_sprite.Play("death");
+			GD.Print("ZombieController: Playing death animation");
+		}
+		else
+		{
+			// No death animation available, die immediately
+			GD.Print("ZombieController: No death animation, dying immediately");
+			OnDeathAnimationFinished();
+		}
+	}
+
+	private void SpawnCorpse()
+	{
+		if (s_corpseScene is null)
+		{
+			return;
+		}
+
+		if (s_corpseScene.Instantiate<Node2D>() is not Node2D corpse)
+		{
+			return;
+		}
+
+		corpse.GlobalPosition = GlobalPosition;
+		corpse.GlobalRotation = _bodyNode?.GlobalRotation ?? GlobalRotation;
 
 		// If the corpse is a ZombieCorpse, set its velocity to the zombie's knockback velocity
-		if (corpse is ZombieCorpse zc)
-		{
-			zc.SetVelocity(_knockbackVelocity);
-		}
+        if (corpse is ZombieCorpse zc)
+        {
+            zc.SetVelocity(_knockbackVelocity);
+        }
 
-		GetTree().Root.AddChild(corpse);
-	}
+        GetTree().Root.AddChild(corpse);
+    }
 
-	private void SpawnBloodSpatter()
-	{
-		if (s_bloodSpatterScene is null)
-		{
-			return;
-		}
+    private void SpawnBloodSpatter()
+    {
+        if (s_bloodSpatterScene is null)
+        {
+            return;
+        }
 
-		if (s_bloodSpatterScene.Instantiate() is not BloodSpatter spatter)
-		{
-			return;
-		}
+        if (s_bloodSpatterScene.Instantiate() is not BloodSpatter spatter)
+        {
+            return;
+        }
 
-		spatter.GlobalPosition = GlobalPosition;
-		var sprayDirection = _lastDamageDirection;
-		if (sprayDirection == Vector2.Zero)
-		{
-			sprayDirection = Vector2.Down;
-		}
+        spatter.GlobalPosition = GlobalPosition;
+        var sprayDirection = _lastDamageDirection;
+        if (sprayDirection == Vector2.Zero)
+        {
+            sprayDirection = Vector2.Down;
+        }
 
-		spatter.SprayDirection = sprayDirection;
-		GetTree().Root.AddChild(spatter);
-	}
+        spatter.SprayDirection = sprayDirection;
+        GetTree().Root.AddChild(spatter);
+    }
 }

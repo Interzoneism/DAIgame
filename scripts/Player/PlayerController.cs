@@ -70,12 +70,12 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 	/// <summary>
 	/// Delay before kick damage is applied (in seconds).
 	/// </summary>
-	private const float KickDamageDelay = 0.2f;
+	private const float KickDamageDelay = 0.1f;
 
 	/// <summary>
 	/// Range in pixels for kick to hit enemies.
 	/// </summary>
-	private const float KickRange = 30f;
+	private const float KickRange = 35f;
 
 	/// <summary>
 	/// Damage dealt by kick.

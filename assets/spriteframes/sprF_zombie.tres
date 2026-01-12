@@ -1,4 +1,4 @@
-[gd_resource type="SpriteFrames" load_steps=91 format=3 uid="uid://cb2bf5j28w032"]
+[gd_resource type="SpriteFrames" load_steps=96 format=3 uid="uid://cb2bf5j28w032"]
 
 [ext_resource type="Texture2D" uid="uid://55ycsah8rjph" path="res://assets/sprites/enemy/sprEAttackKnife_strip9.png" id="1_rvjcy"]
 [ext_resource type="Texture2D" uid="uid://gaq065ryhilv" path="res://assets/sprites/enemy/sprEBackMachinegun_strip4.png" id="2_a2gth"]
@@ -8,6 +8,7 @@
 [ext_resource type="Texture2D" uid="uid://cxgf6ijtaxl3s" path="res://assets/sprites/enemy/sprEFrontShotgun_strip4.png" id="6_d5o05"]
 [ext_resource type="Texture2D" uid="uid://fc0p6s4fdb3x" path="res://assets/sprites/enemy/sprECrawl_strip14.png" id="7_y0mss"]
 [ext_resource type="Texture2D" uid="uid://drq2jj1frm26q" path="res://assets/sprites/enemy/sprEGetUp_strip7.png" id="8_hcyfx"]
+[ext_resource type="Texture2D" uid="uid://cw8c4qygfhts6" path="res://assets/sprites/enemy/sprEGetUp_hor7.png" id="9_hystq"]
 [ext_resource type="Texture2D" uid="uid://g3ho7m4dlp3s" path="res://assets/sprites/enemy/sprESearchKnife_strip10.png" id="9_u0576"]
 [ext_resource type="Texture2D" uid="uid://b33ubbd37wxcn" path="res://assets/sprites/enemy/sprEGetUpLean new.png" id="10_a2gth"]
 [ext_resource type="Texture2D" uid="uid://jd55t7i8k3yx" path="res://assets/sprites/enemy/sprEWalkKnife_strip8.png" id="10_ebc4i"]
@@ -231,6 +232,22 @@ region = Rect2(300, 0, 60, 32)
 [sub_resource type="AtlasTexture" id="AtlasTexture_dcr33"]
 atlas = ExtResource("8_hcyfx")
 region = Rect2(360, 0, 60, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_u0576"]
+atlas = ExtResource("9_hystq")
+region = Rect2(60, 0, 60, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ebc4i"]
+atlas = ExtResource("9_hystq")
+region = Rect2(120, 0, 60, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0sknd"]
+atlas = ExtResource("9_hystq")
+region = Rect2(180, 0, 60, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_cl3ri"]
+atlas = ExtResource("9_hystq")
+region = Rect2(240, 0, 60, 32)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_5sjhv"]
 atlas = ExtResource("9_u0576")
@@ -514,6 +531,23 @@ animations = [{
 "loop": true,
 "name": &"crawl_rise",
 "speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_u0576")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ebc4i")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0sknd")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_cl3ri")
+}],
+"loop": true,
+"name": &"death",
+"speed": 30.0
 }, {
 "frames": [{
 "duration": 1.0,

@@ -339,7 +339,7 @@ animations = [{
 }],
 "loop": true,
 "name": &"kick",
-"speed": 18.0
+"speed": 24.0
 }, {
 "frames": [{
 "duration": 1.0,
