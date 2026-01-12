@@ -1,7 +1,6 @@
 namespace DAIgame.Combat;
 
 using System.Collections.Generic;
-using DAIgame.AI;
 using DAIgame.Core;
 using Godot;
 
@@ -340,10 +339,10 @@ public partial class MeleeWeaponHandler : Node
             damageable.ApplyDamage(weapon.Damage, origin, hitPos, hitNormal);
             GD.Print($"MeleeWeaponHandler: Hit {target.Name} for {weapon.Damage} damage");
 
-            // Apply additional knockback to zombies
-            if (weapon.Knockback > 0f && target is ZombieController zombie)
+            // Apply knockback to any knockbackable target (zombies, destructibles, etc.)
+            if (weapon.Knockback > 0f && target is IKnockbackable knockbackable)
             {
-                zombie.ApplyExternalKnockback(hitNormal, weapon.Knockback);
+                knockbackable.ApplyKnockback(hitNormal, weapon.Knockback);
                 GD.Print($"MeleeWeaponHandler: Applied {weapon.Knockback} knockback to {target.Name}");
             }
 

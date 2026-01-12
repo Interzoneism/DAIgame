@@ -1,6 +1,5 @@
 namespace DAIgame.Combat;
 
-using DAIgame.AI;
 using DAIgame.Core;
 using Godot;
 
@@ -147,14 +146,11 @@ public partial class Projectile : Area2D
             SpawnBloodParticles(hitPosition, hitNormal);
             damageable.ApplyDamage(Damage, GlobalPosition - (_direction * 10f), hitPosition, hitNormal);
 
-            // Apply knockback to zombies
+            // Apply knockback to any knockbackable target
             if (Knockback > 0f)
             {
-                var zombie = FindZombieTarget(body);
-                if (zombie is not null)
-                {
-                    zombie.ApplyExternalKnockback(_direction, Knockback);
-                }
+                var knockbackable = FindKnockbackableTarget(body);
+                knockbackable?.ApplyKnockback(_direction, Knockback);
             }
         }
         else
@@ -222,21 +218,21 @@ public partial class Projectile : Area2D
     }
 
     /// <summary>
-    /// Finds the nearest zombie controller by walking up the node hierarchy.
+    /// Finds the nearest knockbackable target by walking up the node hierarchy.
     /// </summary>
-    private static ZombieController? FindZombieTarget(Node node)
+    private static IKnockbackable? FindKnockbackableTarget(Node node)
     {
-        if (node is ZombieController zombie)
+        if (node is IKnockbackable knockbackable)
         {
-            return zombie;
+            return knockbackable;
         }
 
         var parent = node.GetParent();
         while (parent is not null)
         {
-            if (parent is ZombieController parentZombie)
+            if (parent is IKnockbackable parentKnockbackable)
             {
-                return parentZombie;
+                return parentKnockbackable;
             }
             parent = parent.GetParent();
         }

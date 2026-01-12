@@ -8,7 +8,7 @@ using Godot;
 /// Simple zombie AI that idles, chases the player when within detection range,
 /// and attacks when in melee range. Uses NavigationAgent2D for pathfinding.
 /// </summary>
-public partial class ZombieController : CharacterBody2D, IDamageable
+public partial class ZombieController : CharacterBody2D, IDamageable, IKnockbackable
 {
 	/// <summary>
 	/// Zombie movement speed in pixels per second.
@@ -136,6 +136,18 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 	[Export]
 	public float ImpactRotationDuration { get; set; } = 0.3f;
 
+	/// <summary>
+	/// Scene to spawn when zombie dies (corpse decal/body).
+	/// </summary>
+	[Export]
+	public PackedScene? CorpseScene { get; set; }
+
+	/// <summary>
+	/// Scene to spawn for blood spatter effect on death.
+	/// </summary>
+	[Export]
+	public PackedScene? BloodSpatterScene { get; set; }
+
 	private Node2D? _bodyNode;
 	private AnimatedSprite2D? _sprite;
 	private NavigationAgent2D? _navAgent;
@@ -157,8 +169,6 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 	private float _knockdownTimer;
 	private bool _isDying;
 	private Tween? _impactRotationTween;
-	private static PackedScene? _corpseScene;
-	private static PackedScene? _bloodSpatterScene;
 
 	// Legs for separate leg animation (matches player behavior)
 	private Node2D? _legsNode;
@@ -253,9 +263,15 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 			GD.PrintErr("ZombieController._Ready: Legs node not found - leg rotation will not update");
 		}
 
-		_corpseScene ??= GD.Load<PackedScene>("res://scripts/Combat/ZombieCorpse.tscn");
-
-		_bloodSpatterScene ??= GD.Load<PackedScene>("res://scenes/effects/BloodSpatter.tscn");
+		// Warn if death effect scenes are not assigned
+		if (CorpseScene is null)
+		{
+			GD.PrintErr("ZombieController._Ready: CorpseScene not assigned - no corpse will spawn on death");
+		}
+		if (BloodSpatterScene is null)
+		{
+			GD.PrintErr("ZombieController._Ready: BloodSpatterScene not assigned - no blood spatter on death");
+		}
 	}
 
 	public override void _PhysicsProcess(double delta)
@@ -795,13 +811,14 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 
 	/// <summary>
 	/// Applies external knockback force to the zombie (from melee hits, explosions, etc.).
+	/// Implements <see cref="IKnockbackable"/>.
 	/// </summary>
 	/// <param name="direction">Direction of the knockback (normalized).</param>
 	/// <param name="strength">Strength of the knockback force.</param>
-	public void ApplyExternalKnockback(Vector2 direction, float strength)
+	public void ApplyKnockback(Vector2 direction, float strength)
 	{
 		_knockbackVelocity += direction * strength;
-		GD.Print($"ZombieController: Applied external knockback - dir: {direction}, strength: {strength}");
+		GD.Print($"ZombieController: Applied knockback - dir: {direction}, strength: {strength}");
 	}
 
 	/// <summary>
@@ -1041,12 +1058,12 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 
 	private void SpawnCorpse()
 	{
-		if (_corpseScene is null)
+		if (CorpseScene is null)
 		{
 			return;
 		}
 
-		if (_corpseScene.Instantiate<Node2D>() is not Node2D corpse)
+		if (CorpseScene.Instantiate<Node2D>() is not Node2D corpse)
 		{
 			return;
 		}
@@ -1065,12 +1082,12 @@ public partial class ZombieController : CharacterBody2D, IDamageable
 
 	private void SpawnBloodSpatter()
 	{
-		if (_bloodSpatterScene is null)
+		if (BloodSpatterScene is null)
 		{
 			return;
 		}
 
-		if (_bloodSpatterScene.Instantiate() is not BloodSpatter spatter)
+		if (BloodSpatterScene.Instantiate() is not BloodSpatter spatter)
 		{
 			return;
 		}

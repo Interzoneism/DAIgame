@@ -813,12 +813,14 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		_bodySprite.Play(_currentWalkAnim);
 	}
 
+	/// <summary>
+	/// Checks if the animation name is an attack animation.
+	/// Uses prefix matching to support any weapon type without hardcoding.
+	/// </summary>
 	private static bool IsAttackAnimation(StringName animation)
 	{
-		return animation == "attack_pistol" ||
-			   animation == "attack_shotgun" ||
-			   animation == "attack_uzi" ||
-			   animation == "attack_bat";
+		var name = animation.ToString();
+		return name.StartsWith("attack_", System.StringComparison.Ordinal);
 	}
 
 	private void UpdateBodyAnimation(float delta)
@@ -858,13 +860,14 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		}
 	}
 
+	/// <summary>
+	/// Checks if the animation name is a walk animation.
+	/// Uses prefix matching to support any weapon type without hardcoding.
+	/// </summary>
 	private static bool IsWalkAnimation(StringName animation)
 	{
-		return animation == "walk" ||
-			   animation == "walk_pistol" ||
-			   animation == "walk_shotgun" ||
-			   animation == "walk_uzi" ||
-			   animation == "walk_bat";
+		var name = animation.ToString();
+		return name == "walk" || name.StartsWith("walk_", System.StringComparison.Ordinal);
 	}
 
 	private void UpdateLegsFacing(Vector2 inputDir)
