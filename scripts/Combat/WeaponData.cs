@@ -51,6 +51,17 @@ public enum WeaponReloadMode
 }
 
 /// <summary>
+/// Defines what ammo type a ranged weapon uses.
+/// </summary>
+public enum AmmoType
+{
+    None,
+    Small,
+    Rifle,
+    Shotgun
+}
+
+/// <summary>
 /// Resource that defines weapon properties. Designed to be inventory-compatible later.
 /// Each weapon type (Pistol, Shotgun, Uzi) is an instance of this resource.
 /// </summary>
@@ -190,6 +201,12 @@ public partial class WeaponData : Resource
     [Export]
     public WeaponReloadMode ReloadMode { get; set; } = WeaponReloadMode.Magazine;
 
+    /// <summary>
+    /// Ammo type consumed by this weapon (None for melee/unlimited).
+    /// </summary>
+    [Export]
+    public AmmoType AmmoType { get; set; } = AmmoType.None;
+
     // ========== MELEE WEAPON PROPERTIES ==========
 
     /// <summary>
@@ -272,6 +289,7 @@ public partial class WeaponData : Resource
             SpawnOffsetX = SpawnOffsetX,
             SpawnOffsetY = SpawnOffsetY,
             ReloadMode = ReloadMode,
+            AmmoType = AmmoType,
             IsMelee = IsMelee,
             MeleeHitType = MeleeHitType,
             MeleeRange = MeleeRange,

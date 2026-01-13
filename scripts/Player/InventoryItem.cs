@@ -10,6 +10,7 @@ public enum InventoryItemType
     Headwear,
     Shoes,
     Usable,
+    Ammo,
     Misc
 }
 
@@ -41,5 +42,48 @@ public partial class InventoryItem : Resource
     public InventoryItemType ItemType { get; set; } = InventoryItemType.Misc;
 
     [Export]
+    public Combat.AmmoType AmmoType { get; set; } = Combat.AmmoType.None;
+
+    [Export]
+    public int StackCount { get; set; } = 1;
+
+    [Export]
+    public int MaxStack { get; set; } = 1;
+
+    [Export]
     public WeaponData? WeaponData { get; set; }
+
+    public bool IsStackable => MaxStack > 1;
+
+    public bool CanStackWith(InventoryItem other)
+    {
+        if (!IsStackable || !other.IsStackable)
+        {
+            return false;
+        }
+
+        if (ItemType == InventoryItemType.Ammo || other.ItemType == InventoryItemType.Ammo)
+        {
+            return ItemType == InventoryItemType.Ammo
+                && other.ItemType == InventoryItemType.Ammo
+                && AmmoType == other.AmmoType;
+        }
+
+        return ItemId == other.ItemId;
+    }
+
+    public InventoryItem CreateStackCopy(int stackCount)
+    {
+        return new InventoryItem
+        {
+            ItemId = ItemId,
+            DisplayName = DisplayName,
+            Icon = Icon,
+            ItemType = ItemType,
+            AmmoType = AmmoType,
+            StackCount = stackCount,
+            MaxStack = MaxStack,
+            WeaponData = WeaponData
+        };
+    }
 }

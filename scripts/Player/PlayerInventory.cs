@@ -9,6 +9,8 @@ public partial class PlayerInventory : Node
     [Signal]
     public delegate void InventoryChangedEventHandler();
 
+    private const int AmmoStackMax = 300;
+
     [Export]
     public int BackpackColumns { get; set; } = 6;
 
@@ -98,6 +100,58 @@ public partial class PlayerInventory : Node
 
     public bool AddItemToBackpack(InventoryItem item)
     {
+        if (item.IsStackable && !CanFullyFitStack(item))
+        {
+            return false;
+        }
+
+        if (item.IsStackable)
+        {
+            var remaining = item.StackCount;
+            for (var i = 0; i < _backpack.Length; i++)
+            {
+                var existing = _backpack[i];
+                if (existing is null || !existing.CanStackWith(item))
+                {
+                    continue;
+                }
+
+                if (existing.StackCount >= existing.MaxStack)
+                {
+                    continue;
+                }
+
+                var space = existing.MaxStack - existing.StackCount;
+                var toAdd = Mathf.Min(space, remaining);
+                existing.StackCount += toAdd;
+                remaining -= toAdd;
+                if (remaining <= 0)
+                {
+                    EmitSignal(SignalName.InventoryChanged);
+                    return true;
+                }
+            }
+
+            if (remaining > 0)
+            {
+                for (var i = 0; i < _backpack.Length; i++)
+                {
+                    if (_backpack[i] is not null)
+                    {
+                        continue;
+                    }
+
+                    var stackItem = remaining == item.StackCount ? item : item.CreateStackCopy(remaining);
+                    stackItem.StackCount = remaining;
+                    _backpack[i] = stackItem;
+                    EmitSignal(SignalName.InventoryChanged);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         for (var i = 0; i < _backpack.Length; i++)
         {
             if (_backpack[i] is null)
@@ -173,6 +227,8 @@ public partial class PlayerInventory : Node
             DisplayName = "Uzi",
             ItemType = InventoryItemType.Weapon,
             Icon = icon,
+            StackCount = 1,
+            MaxStack = 1,
             WeaponData = weapon
         };
 
@@ -180,6 +236,120 @@ public partial class PlayerInventory : Node
         {
             GD.PrintErr("PlayerInventory: Backpack full, could not add starter uzi.");
         }
+
+        AddStarterAmmo(Combat.AmmoType.Small, "Ammo (Small)", "res://assets/sprites/ammo/ammo_small.png", 120);
+        AddStarterAmmo(Combat.AmmoType.Rifle, "Ammo (Rifle)", "res://assets/sprites/ammo/ammo_rifle.png", 60);
+        AddStarterAmmo(Combat.AmmoType.Shotgun, "Ammo (Shotgun)", "res://assets/sprites/ammo/ammo_shotgun.png", 30);
+    }
+
+    private void AddStarterAmmo(Combat.AmmoType ammoType, string displayName, string iconPath, int amount)
+    {
+        var icon = ResourceLoader.Load<Texture2D>(iconPath);
+        if (icon is null)
+        {
+            GD.PrintErr($"PlayerInventory: Failed to load ammo icon {iconPath}.");
+            return;
+        }
+
+        var ammoItem = new InventoryItem
+        {
+            ItemId = $"ammo_{ammoType.ToString().ToLowerInvariant()}",
+            DisplayName = displayName,
+            ItemType = InventoryItemType.Ammo,
+            AmmoType = ammoType,
+            Icon = icon,
+            MaxStack = AmmoStackMax,
+            StackCount = Mathf.Clamp(amount, 1, AmmoStackMax)
+        };
+
+        if (!AddItemToBackpack(ammoItem))
+        {
+            GD.PrintErr($"PlayerInventory: Backpack full, could not add starter ammo {displayName}.");
+        }
+    }
+
+    public int CountAmmo(Combat.AmmoType ammoType)
+    {
+        var total = 0;
+        foreach (var item in _backpack)
+        {
+            if (item is null || item.ItemType != InventoryItemType.Ammo || item.AmmoType != ammoType)
+            {
+                continue;
+            }
+
+            total += item.StackCount;
+        }
+
+        return total;
+    }
+
+    public int ConsumeAmmo(Combat.AmmoType ammoType, int amount)
+    {
+        if (amount <= 0)
+        {
+            return 0;
+        }
+
+        var remaining = amount;
+        for (var i = 0; i < _backpack.Length; i++)
+        {
+            var item = _backpack[i];
+            if (item is null || item.ItemType != InventoryItemType.Ammo || item.AmmoType != ammoType)
+            {
+                continue;
+            }
+
+            var take = Mathf.Min(item.StackCount, remaining);
+            item.StackCount -= take;
+            remaining -= take;
+
+            if (item.StackCount <= 0)
+            {
+                _backpack[i] = null;
+            }
+
+            if (remaining <= 0)
+            {
+                break;
+            }
+        }
+
+        if (remaining != amount)
+        {
+            EmitSignal(SignalName.InventoryChanged);
+        }
+
+        return amount - remaining;
+    }
+
+    public void NotifyInventoryChanged()
+    {
+        EmitSignal(SignalName.InventoryChanged);
+    }
+
+    private bool CanFullyFitStack(InventoryItem item)
+    {
+        var needed = item.StackCount;
+        var capacity = 0;
+
+        foreach (var slotItem in _backpack)
+        {
+            if (slotItem is null)
+            {
+                capacity += item.MaxStack;
+                continue;
+            }
+
+            if (!slotItem.CanStackWith(item))
+            {
+                continue;
+            }
+
+            capacity += Mathf.Max(0, slotItem.MaxStack - slotItem.StackCount);
+        }
+
+        return capacity >= needed;
     }
 
     private bool SetItemInternal(InventorySlotType slotType, int slotIndex, InventoryItem? item)

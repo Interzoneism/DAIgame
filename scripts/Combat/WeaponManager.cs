@@ -1,6 +1,7 @@
 namespace DAIgame.Combat;
 
 using System.Collections.Generic;
+using DAIgame.Player;
 using Godot;
 
 /// <summary>
@@ -127,6 +128,7 @@ public partial class WeaponManager : Node2D
     private float _reloadDuration;
     private float _recoilRecoveryTimer;
     private RandomNumberGenerator _rng = new();
+    private PlayerInventory? _inventory;
 
     public override void _Ready()
     {
@@ -142,6 +144,8 @@ public partial class WeaponManager : Node2D
                 AddWeapon(weapon);
             }
         }
+
+        _inventory = GetParent().GetNodeOrNull<PlayerInventory>("PlayerInventory");
 
         // Equip first weapon if available
         if (_weapons.Count > 0)
@@ -224,10 +228,26 @@ public partial class WeaponManager : Node2D
             return;
         }
 
+        if (weapon.IsMelee || weapon.AmmoType == AmmoType.None)
+        {
+            _ammoInMagazine[CurrentWeaponIndex] = weapon.MagazineSize;
+            FinishReload();
+            return;
+        }
+
         if (weapon.ReloadMode == WeaponReloadMode.ShellByShell)
         {
+            var consumed = ConsumeAmmoFromInventory(weapon.AmmoType, 1);
+            if (consumed <= 0)
+            {
+                FinishReload();
+                return;
+            }
+
             // Add one shell
-            _ammoInMagazine[CurrentWeaponIndex]++;
+            _ammoInMagazine[CurrentWeaponIndex] = Mathf.Min(
+                _ammoInMagazine[CurrentWeaponIndex] + consumed,
+                weapon.MagazineSize);
             EmitAmmoChanged();
             GD.Print($"WeaponManager: Loaded shell, ammo now {CurrentAmmo}/{weapon.MagazineSize}");
 
@@ -246,8 +266,18 @@ public partial class WeaponManager : Node2D
         }
         else
         {
-            // Magazine reload - fill to max
-            _ammoInMagazine[CurrentWeaponIndex] = weapon.MagazineSize;
+            // Magazine reload - fill as much as possible
+            var needed = weapon.MagazineSize - _ammoInMagazine[CurrentWeaponIndex];
+            var consumed = ConsumeAmmoFromInventory(weapon.AmmoType, needed);
+            if (consumed <= 0)
+            {
+                FinishReload();
+                return;
+            }
+
+            _ammoInMagazine[CurrentWeaponIndex] = Mathf.Min(
+                _ammoInMagazine[CurrentWeaponIndex] + consumed,
+                weapon.MagazineSize);
             FinishReload();
         }
     }
@@ -358,6 +388,17 @@ public partial class WeaponManager : Node2D
             return;
         }
 
+        if (weapon.IsMelee || weapon.AmmoType == AmmoType.None)
+        {
+            return;
+        }
+
+        if (_inventory is not null && _inventory.CountAmmo(weapon.AmmoType) <= 0)
+        {
+            GD.Print($"WeaponManager: No ammo available for {weapon.DisplayName}.");
+            return;
+        }
+
         // Already reloading or magazine is full
         if (IsReloading || _ammoInMagazine[CurrentWeaponIndex] >= weapon.MagazineSize)
         {
@@ -442,6 +483,21 @@ public partial class WeaponManager : Node2D
         }
 
         return true;
+    }
+
+    private int ConsumeAmmoFromInventory(AmmoType ammoType, int amount)
+    {
+        if (amount <= 0)
+        {
+            return 0;
+        }
+
+        if (_inventory is null)
+        {
+            return amount;
+        }
+
+        return _inventory.ConsumeAmmo(ammoType, amount);
     }
 
     /// <summary>

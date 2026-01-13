@@ -25,3 +25,4 @@ ProjectileSpeed = 850.0
 SpawnOffsetX = 30.0
 SpawnOffsetY = 0.0
 ReloadMode = 0
+AmmoType = 1

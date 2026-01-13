@@ -20,9 +20,23 @@ public partial class InventoryScreen : CanvasLayer
     private int _backpackRows = DefaultBackpackRows;
     private bool _isOpen;
     private Font? _mainFont;
+    private TextureRect? _heldIcon;
+    private PlayerInventory? _heldInventory;
+    private bool _isDragActive;
+
+    public static InventoryScreen? Instance { get; private set; }
+
+    public bool HasHeldItem => HeldItem is not null;
+
+    public InventoryItem? HeldItem { get; private set; }
+
+    public InventorySlotType HeldFromSlotType { get; private set; }
+
+    public int HeldFromSlotIndex { get; private set; } = -1;
 
     public override void _Ready()
     {
+        Instance = this;
         Layer = 10;
         CreateUI(DefaultBackpackColumns, DefaultBackpackRows);
         if (_root is not null)
@@ -33,7 +47,11 @@ public partial class InventoryScreen : CanvasLayer
         UpdateInventoryReference();
     }
 
-    public override void _Process(double delta) => UpdateInventoryReference();
+    public override void _Process(double delta)
+    {
+        UpdateInventoryReference();
+        UpdateHeldIconPosition();
+    }
 
     public override void _UnhandledInput(InputEvent @event)
     {
@@ -49,8 +67,13 @@ public partial class InventoryScreen : CanvasLayer
             // Clear hover and holding states when closing inventory
             if (!_isOpen)
             {
+                if (HeldItem is not null && _inventory is not null)
+                {
+                    PlaceHeldItemInBackpack(_inventory);
+                }
                 CursorManager.Instance?.SetHoveringItem(false);
                 CursorManager.Instance?.SetHoldingItem(false);
+                SetDragActive(false);
             }
 
             GetViewport().SetInputAsHandled();
@@ -186,6 +209,19 @@ public partial class InventoryScreen : CanvasLayer
 
         CreateEquipmentPanel(body);
         CreateBackpackPanel(body, backpackColumns, backpackRows);
+
+        _heldIcon = new TextureRect
+        {
+            CustomMinimumSize = new Vector2(SlotSize, SlotSize),
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            Visible = false,
+            ZAsRelative = false,
+            ZIndex = 100,
+            Size = new Vector2(SlotSize, SlotSize)
+        };
+        _root.AddChild(_heldIcon);
     }
 
     private void CreateEquipmentPanel(HBoxContainer parent)
@@ -332,11 +368,222 @@ public partial class InventoryScreen : CanvasLayer
         }
     }
 
+    public bool TryBeginHold(PlayerInventory inventory, InventorySlotType fromType, int fromIndex)
+    {
+        if (HeldItem is not null)
+        {
+            return false;
+        }
+
+        var item = inventory.GetItem(fromType, fromIndex);
+        if (item is null)
+        {
+            return false;
+        }
+
+        if (!inventory.SetItem(fromType, fromIndex, null))
+        {
+            GD.PrintErr($"InventoryScreen: Failed to clear slot {fromType}[{fromIndex}] for hold.");
+            return false;
+        }
+
+        HeldItem = item;
+        HeldFromSlotType = fromType;
+        HeldFromSlotIndex = fromIndex;
+        _heldInventory = inventory;
+        CursorManager.Instance?.SetHoldingItem(true);
+        UpdateHeldIcon();
+        GD.Print($"InventoryScreen: Holding '{item.DisplayName}' from {fromType}[{fromIndex}].");
+        return true;
+    }
+
+    public bool TryPlaceHeldItem(PlayerInventory inventory, InventorySlotType toType, int toIndex)
+    {
+        if (HeldItem is null)
+        {
+            return false;
+        }
+
+        var targetItem = inventory.GetItem(toType, toIndex);
+        if (toType == InventorySlotType.Backpack && targetItem is not null && HeldItem.CanStackWith(targetItem))
+        {
+            var space = targetItem.MaxStack - targetItem.StackCount;
+            if (space > 0)
+            {
+                var toAdd = Mathf.Min(space, HeldItem.StackCount);
+                targetItem.StackCount += toAdd;
+                HeldItem.StackCount -= toAdd;
+                inventory.NotifyInventoryChanged();
+
+                if (HeldItem.StackCount <= 0)
+                {
+                    ClearHeldItem();
+                }
+
+                return true;
+            }
+        }
+
+        if (!inventory.CanPlaceItem(HeldItem, toType))
+        {
+            GD.Print($"InventoryScreen: {toType}[{toIndex}] incompatible, sending to backpack.");
+            return PlaceHeldItemInBackpack(inventory);
+        }
+
+        if (targetItem is not null && !inventory.CanPlaceItem(targetItem, HeldFromSlotType))
+        {
+            GD.Print($"InventoryScreen: Swap incompatible with {toType}[{toIndex}], sending to backpack.");
+            return PlaceHeldItemInBackpack(inventory);
+        }
+
+        if (!inventory.SetItem(toType, toIndex, HeldItem))
+        {
+            GD.PrintErr($"InventoryScreen: Failed to place held item in {toType}[{toIndex}].");
+            return false;
+        }
+
+        if (targetItem is not null)
+        {
+            if (!inventory.SetItem(HeldFromSlotType, HeldFromSlotIndex, targetItem))
+            {
+                if (!inventory.AddItemToBackpack(targetItem))
+                {
+                    inventory.SetItem(toType, toIndex, targetItem);
+                    GD.PrintErr("InventoryScreen: Failed to swap items; backpack full.");
+                    return TryReturnHeldToSource();
+                }
+            }
+        }
+
+        ClearHeldItem();
+        return true;
+    }
+
+    public bool PlaceHeldItemInBackpack(PlayerInventory inventory)
+    {
+        if (HeldItem is null)
+        {
+            return false;
+        }
+
+        if (inventory.AddItemToBackpack(HeldItem))
+        {
+            GD.Print("InventoryScreen: Placed held item in backpack.");
+            ClearHeldItem();
+            return true;
+        }
+
+        GD.PrintErr("InventoryScreen: Backpack full, returning held item to original slot.");
+        return TryReturnHeldToSource();
+    }
+
+    public void SetDragActive(bool active)
+    {
+        _isDragActive = active;
+        UpdateHeldIcon();
+    }
+
+    private bool TryReturnHeldToSource()
+    {
+        if (HeldItem is null || _heldInventory is null)
+        {
+            return false;
+        }
+
+        if (HeldFromSlotIndex < 0)
+        {
+            return PlaceHeldItemInBackpack(_heldInventory);
+        }
+
+        if (!_heldInventory.SetItem(HeldFromSlotType, HeldFromSlotIndex, HeldItem))
+        {
+            GD.PrintErr("InventoryScreen: Failed to return held item to its original slot.");
+            return false;
+        }
+
+        ClearHeldItem();
+        return true;
+    }
+
+    private void ClearHeldItem()
+    {
+        HeldItem = null;
+        _heldInventory = null;
+        HeldFromSlotIndex = -1;
+        CursorManager.Instance?.SetHoldingItem(false);
+        UpdateHeldIcon();
+    }
+
+    public bool TrySplitStack(PlayerInventory inventory, InventorySlotType fromType, int fromIndex)
+    {
+        if (HeldItem is not null)
+        {
+            return false;
+        }
+
+        var item = inventory.GetItem(fromType, fromIndex);
+        if (item is null || !item.IsStackable || item.StackCount <= 1)
+        {
+            return false;
+        }
+
+        var splitCount = item.StackCount / 2;
+        if (splitCount <= 0)
+        {
+            return false;
+        }
+
+        item.StackCount -= splitCount;
+        HeldItem = item.CreateStackCopy(splitCount);
+        HeldFromSlotType = fromType;
+        HeldFromSlotIndex = -1;
+        _heldInventory = inventory;
+        CursorManager.Instance?.SetHoldingItem(true);
+        inventory.NotifyInventoryChanged();
+        UpdateHeldIcon();
+        GD.Print($"InventoryScreen: Split stack, holding {HeldItem.StackCount} of '{item.DisplayName}'.");
+        return true;
+    }
+
+    private void UpdateHeldIcon()
+    {
+        if (_heldIcon is null)
+        {
+            return;
+        }
+
+        if (HeldItem is null || !_isOpen || _isDragActive)
+        {
+            _heldIcon.Visible = false;
+            _heldIcon.Texture = null;
+            return;
+        }
+
+        _heldIcon.Texture = HeldItem.Icon;
+        _heldIcon.Visible = true;
+    }
+
+    private void UpdateHeldIconPosition()
+    {
+        if (_heldIcon is null || !_heldIcon.Visible)
+        {
+            return;
+        }
+
+        var mousePos = GetViewport().GetMousePosition();
+        _heldIcon.Position = mousePos - (_heldIcon.Size / 2f);
+    }
+
     public override void _ExitTree()
     {
         if (_inventory is not null)
         {
             _inventory.InventoryChanged -= RefreshAllSlots;
+        }
+
+        if (Instance == this)
+        {
+            Instance = null;
         }
     }
 }

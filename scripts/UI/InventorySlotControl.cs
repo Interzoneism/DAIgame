@@ -7,10 +7,12 @@ using Godot;
 public partial class InventorySlotControl : PanelContainer
 {
     private TextureRect? _icon;
+    private Label? _stackLabel;
     private ColorRect? _categoryBackground;
     private StyleBoxFlat? _style;
     private ColorRect? _dropOverlay;
     private bool _isDragging;
+    private bool _dragStartedHere;
 
     // Category colors (weapon, usable, ammo/misc, wearable)
     private static readonly Color WeaponColor = new(0.6f, 0.2f, 0.2f, 0.7f);
@@ -64,6 +66,18 @@ public partial class InventorySlotControl : PanelContainer
         };
         margin.AddChild(_icon);
 
+        _stackLabel = new Label
+        {
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            MouseFilter = MouseFilterEnum.Ignore,
+            Modulate = new Color(0.95f, 0.95f, 0.95f)
+        };
+        _stackLabel.SetAnchorsPreset(LayoutPreset.FullRect);
+        _stackLabel.AddThemeConstantOverride("margin_right", 2);
+        _stackLabel.AddThemeConstantOverride("margin_bottom", 1);
+        margin.AddChild(_stackLabel);
+
         _dropOverlay = new ColorRect
         {
             Color = new Color(1f, 0f, 0f, 0.3f),
@@ -113,6 +127,71 @@ public partial class InventorySlotControl : PanelContainer
         }
     }
 
+    public override void _GuiInput(InputEvent @event)
+    {
+        if (@event is not InputEventMouseButton mouseButton)
+        {
+            return;
+        }
+
+        if (mouseButton.ButtonIndex == MouseButton.Right && mouseButton.Pressed)
+        {
+            if (Inventory is null)
+            {
+                return;
+            }
+
+            var inventoryScreen = InventoryScreen.Instance;
+            if (inventoryScreen is null)
+            {
+                return;
+            }
+
+            if (inventoryScreen.TrySplitStack(Inventory, SlotType, SlotIndex))
+            {
+                GetViewport().SetInputAsHandled();
+            }
+
+            return;
+        }
+
+        if (mouseButton.ButtonIndex != MouseButton.Left || mouseButton.Pressed)
+        {
+            return;
+        }
+
+        if (Inventory is null)
+        {
+            return;
+        }
+
+        if (_dragStartedHere)
+        {
+            return;
+        }
+
+        var inventoryScreen = InventoryScreen.Instance;
+        if (inventoryScreen is null)
+        {
+            return;
+        }
+
+        if (inventoryScreen.HasHeldItem)
+        {
+            inventoryScreen.TryPlaceHeldItem(Inventory, SlotType, SlotIndex);
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+
+        if (Inventory.GetItem(SlotType, SlotIndex) is null)
+        {
+            return;
+        }
+
+        inventoryScreen.TryBeginHold(Inventory, SlotType, SlotIndex);
+        GetViewport().SetInputAsHandled();
+    }
+
     public void Configure(InventorySlotType slotType, int slotIndex)
     {
         SlotType = slotType;
@@ -137,6 +216,10 @@ public partial class InventorySlotControl : PanelContainer
             _icon.Texture = null;
             _icon.Modulate = Colors.White;
             TooltipText = "";
+            if (_stackLabel is not null)
+            {
+                _stackLabel.Text = "";
+            }
             UpdateCategoryBackground(null);
             return;
         }
@@ -145,6 +228,10 @@ public partial class InventorySlotControl : PanelContainer
         _icon.Texture = item?.Icon;
         _icon.Modulate = _isDragging ? new Color(1f, 1f, 1f, 0.5f) : Colors.White;
         TooltipText = item?.DisplayName ?? "";
+        if (_stackLabel is not null)
+        {
+            _stackLabel.Text = item is { StackCount: > 1 } ? item.StackCount.ToString() : "";
+        }
         UpdateCategoryBackground(item);
     }
 
@@ -166,9 +253,9 @@ public partial class InventorySlotControl : PanelContainer
         {
             InventoryItemType.Weapon => WeaponColor,
             InventoryItemType.Usable => UsableColor,
+            InventoryItemType.Ammo => AmmoColor,
             InventoryItemType.Outfit or InventoryItemType.Headwear or InventoryItemType.Shoes => WearableColor,
-            InventoryItemType.Misc => throw new System.NotImplementedException(),
-            _ => AmmoColor // Misc and any others
+            _ => DefaultColor
         };
     }
 
@@ -179,8 +266,19 @@ public partial class InventorySlotControl : PanelContainer
             return default;
         }
 
+        var inventoryScreen = InventoryScreen.Instance;
+        if (inventoryScreen is null || inventoryScreen.HasHeldItem)
+        {
+            return default;
+        }
+
         var item = Inventory.GetItem(SlotType, SlotIndex);
         if (item is null)
+        {
+            return default;
+        }
+
+        if (!inventoryScreen.TryBeginHold(Inventory, SlotType, SlotIndex))
         {
             return default;
         }
@@ -189,6 +287,7 @@ public partial class InventorySlotControl : PanelContainer
 
         // Set dragging state and reduce icon opacity
         _isDragging = true;
+        _dragStartedHere = true;
         if (_icon is not null)
         {
             _icon.Modulate = new Color(1f, 1f, 1f, 0.5f);
@@ -235,7 +334,7 @@ public partial class InventorySlotControl : PanelContainer
         previewContainer.Position = new Vector2(-cursorSize.X / 2f, -cursorSize.Y / 2f);
         SetDragPreview(previewContainer);
 
-        CursorManager.Instance?.SetHoldingItem(true);
+        inventoryScreen.SetDragActive(true);
 
         return data;
     }
@@ -264,39 +363,30 @@ public partial class InventorySlotControl : PanelContainer
             return false;
         }
 
-        if (fromSlot == this || fromSlot.Inventory is null)
+        if (fromSlot.Inventory is null)
         {
             return false;
         }
 
-        var item = fromSlot.Inventory.GetItem(fromSlot.SlotType, fromSlot.SlotIndex);
-        if (item is null)
+        var inventoryScreen = InventoryScreen.Instance;
+        if (inventoryScreen is null || !inventoryScreen.HasHeldItem || inventoryScreen.HeldItem is null)
         {
             return false;
         }
 
+        var item = inventoryScreen.HeldItem;
         var canPlace = Inventory.CanPlaceItem(item, SlotType);
-        if (!canPlace)
-        {
-            // Show red overlay for invalid drop
-            if (_dropOverlay is not null)
-            {
-                _dropOverlay.Visible = true;
-            }
-            GD.Print($"InventorySlot: Cannot place '{item.DisplayName}' in {SlotType}[{SlotIndex}] - showing red overlay");
-            return false;
-        }
-
         var targetItem = Inventory.GetItem(SlotType, SlotIndex);
-        if (targetItem is not null && !Inventory.CanPlaceItem(targetItem, fromSlot.SlotType))
+        var canSwap = targetItem is null || Inventory.CanPlaceItem(targetItem, inventoryScreen.HeldFromSlotType);
+        if (!canPlace || !canSwap)
         {
             // Show red overlay for invalid swap
             if (_dropOverlay is not null)
             {
                 _dropOverlay.Visible = true;
             }
-            GD.Print($"InventorySlot: Cannot swap '{item.DisplayName}' with '{targetItem.DisplayName}' - showing red overlay");
-            return false;
+            GD.Print($"InventorySlot: Incompatible drop for '{item.DisplayName}' at {SlotType}[{SlotIndex}] - sending to backpack");
+            return true;
         }
 
         // Valid drop - hide overlay
@@ -336,15 +426,23 @@ public partial class InventorySlotControl : PanelContainer
             return;
         }
 
+        var inventoryScreen = InventoryScreen.Instance;
+        if (inventoryScreen is null)
+        {
+            CursorManager.Instance?.SetHoldingItem(false);
+            return;
+        }
+
         // Reset dragging state on source slot
         fromSlot._isDragging = false;
+        fromSlot._dragStartedHere = false;
         if (fromSlot._icon is not null)
         {
             fromSlot._icon.Modulate = Colors.White;
         }
 
-        fromSlot.Inventory.TryMoveItem(fromSlot.SlotType, fromSlot.SlotIndex, SlotType, SlotIndex);
-        CursorManager.Instance?.SetHoldingItem(false);
+        inventoryScreen.TryPlaceHeldItem(Inventory, SlotType, SlotIndex);
+        inventoryScreen.SetDragActive(false);
         GD.Print($"InventorySlot: Dropped item into {SlotType}[{SlotIndex}]");
 
         // Hide drop overlay after drop
@@ -361,12 +459,19 @@ public partial class InventorySlotControl : PanelContainer
         {
             // Reset dragging state and restore icon opacity
             _isDragging = false;
+            _dragStartedHere = false;
             if (_icon is not null)
             {
                 _icon.Modulate = Colors.White;
             }
 
-            CursorManager.Instance?.SetHoldingItem(false);
+            var inventoryScreen = InventoryScreen.Instance;
+            inventoryScreen?.SetDragActive(false);
+            if (inventoryScreen is not null && inventoryScreen.HasHeldItem && Inventory is not null)
+            {
+                inventoryScreen.PlaceHeldItemInBackpack(Inventory);
+            }
+
             if (_dropOverlay is not null)
             {
                 _dropOverlay.Visible = false;
