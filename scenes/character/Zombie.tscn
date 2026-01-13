@@ -3,8 +3,8 @@
 [ext_resource type="Script" path="res://scripts/AI/ZombieController.cs" id="1_zombie"]
 [ext_resource type="SpriteFrames" uid="uid://cb2bf5j28w032" path="res://assets/spriteframes/sprF_zombie.tres" id="2_frames"]
 [ext_resource type="SpriteFrames" uid="uid://cr0o7t6e44h3t" path="res://assets/spriteframes/sprF_zombieLegs.tres" id="3_ccr16"]
-[ext_resource type="PackedScene" uid="uid://bhqdgsb74ybcc" path="res://scripts/Combat/ZombieCorpse.tscn" id="4_corpse"]
-[ext_resource type="PackedScene" uid="uid://d0h4ktrfunijv" path="res://scenes/effects/BloodSpatter.tscn" id="5_blood"]
+[ext_resource type="PackedScene" path="res://scenes/loot/LootableCorpse.tscn" id="4_corpse"]
+[ext_resource type="PackedScene" uid="uid://dh8x5ub57w8s7" path="res://scenes/effects/BloodSpatter.tscn" id="5_blood"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_nip5i"]
 radius = 7.8125
@@ -22,6 +22,7 @@ CorpseScene = ExtResource("4_corpse")
 BloodSpatterScene = ExtResource("5_blood")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+visible = false
 scale = Vector2(0.64, 0.64)
 shape = SubResource("CapsuleShape2D_nip5i")
 

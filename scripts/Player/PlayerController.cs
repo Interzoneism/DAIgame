@@ -429,204 +429,204 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		var penaltyFactor = (angleBetween - (Mathf.Pi / 2f)) / (Mathf.Pi / 2f);
 
 		// Base penalty scaled by how far backward we're moving
-        var basePenalty = MaxBackwardPenalty * penaltyFactor;
+		var basePenalty = MaxBackwardPenalty * penaltyFactor;
 
-        // Dexterity offset: each point above 10 reduces penalty, below 10 increases it
-        var dexOffset = (Dexterity - 10) * DexBackwardPenaltyOffset;
-        var finalPenalty = Mathf.Clamp(basePenalty - dexOffset, 0f, 0.5f);
+		// Dexterity offset: each point above 10 reduces penalty, below 10 increases it
+		var dexOffset = (Dexterity - 10) * DexBackwardPenaltyOffset;
+		var finalPenalty = Mathf.Clamp(basePenalty - dexOffset, 0f, 0.5f);
 
-        return 1f - finalPenalty;
-    }
+		return 1f - finalPenalty;
+	}
 
-    /// <summary>
-    /// Rotates the player body to face the mouse cursor.
-    /// Uses dexterity-based turning speed for smooth but responsive aiming.
-    /// Body direction is locked during kick animation.
-    /// </summary>
-    private void RotateTowardsMouse()
-    {
-        // Lock body direction during kick
-        if (_kickPlaying)
-        {
-            return;
-        }
+	/// <summary>
+	/// Rotates the player body to face the mouse cursor.
+	/// Uses dexterity-based turning speed for smooth but responsive aiming.
+	/// Body direction is locked during kick animation.
+	/// </summary>
+	private void RotateTowardsMouse()
+	{
+		// Lock body direction during kick
+		if (_kickPlaying)
+		{
+			return;
+		}
 
-        var mousePos = GetGlobalMousePosition();
-        var direction = mousePos - GlobalPosition;
+		var mousePos = GetGlobalMousePosition();
+		var direction = mousePos - GlobalPosition;
 
-        if (direction == Vector2.Zero)
-        {
-            return;
-        }
+		if (direction == Vector2.Zero)
+		{
+			return;
+		}
 
-        var targetDirection = direction.Normalized();
-        var targetAngle = targetDirection.Angle();
+		var targetDirection = direction.Normalized();
+		var targetAngle = targetDirection.Angle();
 
-        if (_bodyNode is null)
-        {
-            return;
-        }
+		if (_bodyNode is null)
+		{
+			return;
+		}
 
-        // Calculate dexterity-modified turn speed
-        var dexModifier = 1f + ((Dexterity - 10) * DexTurnSpeedScale);
-        var turnSpeed = BaseTurnSpeed * Mathf.Max(dexModifier, 0.2f);
+		// Calculate dexterity-modified turn speed
+		var dexModifier = 1f + ((Dexterity - 10) * DexTurnSpeedScale);
+		var turnSpeed = BaseTurnSpeed * Mathf.Max(dexModifier, 0.2f);
 
-        // Calculate the shortest angular distance
-        var currentAngle = _bodyNode.Rotation;
-        var angleDiff = Mathf.Wrap(targetAngle - currentAngle, -Mathf.Pi, Mathf.Pi);
+		// Calculate the shortest angular distance
+		var currentAngle = _bodyNode.Rotation;
+		var angleDiff = Mathf.Wrap(targetAngle - currentAngle, -Mathf.Pi, Mathf.Pi);
 
-        // Apply turn speed limit (use unscaled delta for smooth turning regardless of slow-mo)
-        var delta = (float)GetProcessDeltaTime();
-        var maxTurn = turnSpeed * delta;
+		// Apply turn speed limit (use unscaled delta for smooth turning regardless of slow-mo)
+		var delta = (float)GetProcessDeltaTime();
+		var maxTurn = turnSpeed * delta;
 
-        var newAngle = Mathf.Abs(angleDiff) <= maxTurn
-            ? targetAngle
-            : currentAngle + (Mathf.Sign(angleDiff) * maxTurn);
+		var newAngle = Mathf.Abs(angleDiff) <= maxTurn
+			? targetAngle
+			: currentAngle + (Mathf.Sign(angleDiff) * maxTurn);
 
-        _bodyNode.Rotation = newAngle;
-        _aimDirection = new Vector2(Mathf.Cos(newAngle), Mathf.Sin(newAngle));
-    }
+		_bodyNode.Rotation = newAngle;
+		_aimDirection = new Vector2(Mathf.Cos(newAngle), Mathf.Sin(newAngle));
+	}
 
-    private void HandleFire()
-    {
-        // Block firing during kick
-        if (_kickPlaying)
-        {
-            return;
-        }
+	private void HandleFire()
+	{
+		// Block firing during kick
+		if (_kickPlaying)
+		{
+			return;
+		}
 
-        if (_weaponManager is null)
-        {
-            return;
-        }
+		if (_weaponManager is null)
+		{
+			return;
+		}
 
-        var weapon = _weaponManager.CurrentWeapon;
-        if (weapon is null)
-        {
-            return;
-        }
+		var weapon = _weaponManager.CurrentWeapon;
+		if (weapon is null)
+		{
+			return;
+		}
 
-        // Check fire input based on weapon fire mode
-        bool shouldFire;
-        if (weapon.FireMode == WeaponFireMode.Automatic)
-        {
-            // Automatic: fire while held
-            shouldFire = Input.IsActionPressed("Fire");
+		// Check fire input based on weapon fire mode
+		bool shouldFire;
+		if (weapon.FireMode == WeaponFireMode.Automatic)
+		{
+			// Automatic: fire while held
+			shouldFire = Input.IsActionPressed("Fire");
 
-            // Stop attack animation if out of ammo while holding fire
-            if (_weaponManager.CurrentAmmo <= 0 && _attackPlaying && _bodySprite?.Animation == _currentAttackAnim)
-            {
-                _attackPlaying = false;
-                _weaponWalkTimer = WeaponWalkDuration;
-                _bodySprite?.Play(_currentWalkAnim);
-            }
+			// Stop attack animation if out of ammo while holding fire
+			if (_weaponManager.CurrentAmmo <= 0 && _attackPlaying && _bodySprite?.Animation == _currentAttackAnim)
+			{
+				_attackPlaying = false;
+				_weaponWalkTimer = WeaponWalkDuration;
+				_bodySprite?.Play(_currentWalkAnim);
+			}
 
-            // Handle releasing fire button on automatic weapon
-            if (!shouldFire && _attackPlaying && _bodySprite?.Animation == _currentAttackAnim)
-            {
-                // Stop automatic fire animation and return to walk
-                _attackPlaying = false;
-                _weaponWalkTimer = WeaponWalkDuration;
-                _bodySprite?.Play(_currentWalkAnim);
-            }
-        }
-        else
-        {
-            // Semi-auto: fire on press only
-            shouldFire = Input.IsActionJustPressed("Fire");
-        }
+			// Handle releasing fire button on automatic weapon
+			if (!shouldFire && _attackPlaying && _bodySprite?.Animation == _currentAttackAnim)
+			{
+				// Stop automatic fire animation and return to walk
+				_attackPlaying = false;
+				_weaponWalkTimer = WeaponWalkDuration;
+				_bodySprite?.Play(_currentWalkAnim);
+			}
+		}
+		else
+		{
+			// Semi-auto: fire on press only
+			shouldFire = Input.IsActionJustPressed("Fire");
+		}
 
-        if (!shouldFire)
-        {
-            return;
-        }
+		if (!shouldFire)
+		{
+			return;
+		}
 
-        // Check stamina for melee weapons
-        if (weapon.IsMelee && weapon.StaminaCost > 0f)
-        {
-            if (!HasStamina(weapon.StaminaCost))
-            {
-                return;
-            }
-        }
+		// Check stamina for melee weapons
+		if (weapon.IsMelee && weapon.StaminaCost > 0f)
+		{
+			if (!HasStamina(weapon.StaminaCost))
+			{
+				return;
+			}
+		}
 
-        // TryFire returns true if a shot was fired (ammo was available before call)
-        if (_weaponManager.TryFire(GlobalPosition, _aimDirection))
-        {
-            // Consume stamina for melee weapons
-            if (weapon.IsMelee && weapon.StaminaCost > 0f)
-            {
-                TryConsumeStamina(weapon.StaminaCost);
-            }
+		// TryFire returns true if a shot was fired (ammo was available before call)
+		if (_weaponManager.TryFire(GlobalPosition, _aimDirection))
+		{
+			// Consume stamina for melee weapons
+			if (weapon.IsMelee && weapon.StaminaCost > 0f)
+			{
+				TryConsumeStamina(weapon.StaminaCost);
+			}
 
-            // Pass true to indicate this shot was just fired, even if ammo is now 0
-            StartAttackAnimation(true);
-            ApplyKnockbackImpulse(weapon.KnockbackPlayer);
-        }
-    }
+			// Pass true to indicate this shot was just fired, even if ammo is now 0
+			StartAttackAnimation(true);
+			ApplyKnockbackImpulse(weapon.KnockbackPlayer);
+		}
+	}
 
-    private void HandleWeaponSwitch()
-    {
-        if (_kickPlaying || _attackPlaying)
-        {
-            return;
-        }
+	private void HandleWeaponSwitch()
+	{
+		if (_kickPlaying || _attackPlaying)
+		{
+			return;
+		}
 
-        if (!Input.IsActionJustPressed("SwitchHeld"))
-        {
-            return;
-        }
+		if (!Input.IsActionJustPressed("SwitchHeld"))
+		{
+			return;
+		}
 
-        _weaponManager?.CycleWeapon();
-    }
+		_weaponManager?.CycleWeapon();
+	}
 
-    private void HandleReload()
-    {
-        if (_kickPlaying)
-        {
-            return;
-        }
+	private void HandleReload()
+	{
+		if (_kickPlaying)
+		{
+			return;
+		}
 
-        if (!Input.IsActionJustPressed("Reload"))
-        {
-            return;
-        }
+		if (!Input.IsActionJustPressed("Reload"))
+		{
+			return;
+		}
 
-        _weaponManager?.StartReload();
-    }
+		_weaponManager?.StartReload();
+	}
 
-    private void HandleHeal()
-    {
-        // Block healing during kick
-        if (_kickPlaying)
-        {
-            return;
-        }
+	private void HandleHeal()
+	{
+		// Block healing during kick
+		if (_kickPlaying)
+		{
+			return;
+		}
 
-        if (!Input.IsActionJustPressed("UseHealItem"))
-        {
-            return;
-        }
+		if (!Input.IsActionJustPressed("UseHealItem"))
+		{
+			return;
+		}
 
-        if (HealingItems <= 0)
-        {
-            GD.Print("No healing items remaining!");
-            return;
-        }
+		if (HealingItems <= 0)
+		{
+			GD.Print("No healing items remaining!");
+			return;
+		}
 
-        if (CurrentHealth >= MaxHealth)
-        {
-            GD.Print("Already at full health!");
-            return;
-        }
+		if (CurrentHealth >= MaxHealth)
+		{
+			GD.Print("Already at full health!");
+			return;
+		}
 
-        HealingItems--;
-        var healedAmount = Mathf.Min(HealAmount, MaxHealth - CurrentHealth);
-        CurrentHealth = Mathf.Min(CurrentHealth + HealAmount, MaxHealth);
-        GD.Print($"Healed {healedAmount}! Health: {CurrentHealth}/{MaxHealth} (Items left: {HealingItems})");
-    }
+		HealingItems--;
+		var healedAmount = Mathf.Min(HealAmount, MaxHealth - CurrentHealth);
+		CurrentHealth = Mathf.Min(CurrentHealth + HealAmount, MaxHealth);
+		GD.Print($"Healed {healedAmount}! Health: {CurrentHealth}/{MaxHealth} (Items left: {HealingItems})");
+	}
 
-    /// <summary>
+	/// <summary>
 	/// Adds healing items to the player's inventory.
 	/// </summary>
 	public void AddHealingItems(int count)
@@ -786,69 +786,69 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 			targetSpeed = Mathf.Max(targetSpeed, 8f);
 
 			// For automatic weapons, don't restart the animation if already playing
-            // This ensures both frames play continuously without jumping back to frame 0
-            _bodySprite.SpriteFrames?.SetAnimationSpeed(_currentAttackAnim, targetSpeed);
-            if (_bodySprite.Animation != _currentAttackAnim)
-            {
-                _bodySprite.Play(_currentAttackAnim);
-            }
-            else if (!_bodySprite.IsPlaying())
-            {
-                _bodySprite.Play(_currentAttackAnim);
-            }
-            GD.Print($"PlayerController: Auto attack anim speed = {targetSpeed:F1} FPS (frames={_currentAttackFrameCount}, interval={timeBetweenShots:F3}s)");
-            return;
-        }
+			// This ensures both frames play continuously without jumping back to frame 0
+			_bodySprite.SpriteFrames?.SetAnimationSpeed(_currentAttackAnim, targetSpeed);
+			if (_bodySprite.Animation != _currentAttackAnim)
+			{
+				_bodySprite.Play(_currentAttackAnim);
+			}
+			else if (!_bodySprite.IsPlaying())
+			{
+				_bodySprite.Play(_currentAttackAnim);
+			}
+			GD.Print($"PlayerController: Auto attack anim speed = {targetSpeed:F1} FPS (frames={_currentAttackFrameCount}, interval={timeBetweenShots:F3}s)");
+			return;
+		}
 
-        GD.Print($"PlayerController: Attack anim speed = {targetSpeed:F1} FPS (frames={_currentAttackFrameCount}, interval={timeBetweenShots:F3}s)");
-        _bodySprite.SpriteFrames?.SetAnimationSpeed(_currentAttackAnim, targetSpeed);
+		GD.Print($"PlayerController: Attack anim speed = {targetSpeed:F1} FPS (frames={_currentAttackFrameCount}, interval={timeBetweenShots:F3}s)");
+		_bodySprite.SpriteFrames?.SetAnimationSpeed(_currentAttackAnim, targetSpeed);
 
-        _bodySprite.Stop();
-        _bodySprite.Play(_currentAttackAnim);
-    }
+		_bodySprite.Stop();
+		_bodySprite.Play(_currentAttackAnim);
+	}
 
-    private void OnBodyAnimationFinished()
-    {
-        if (_bodySprite is null)
-        {
-            return;
-        }
+	private void OnBodyAnimationFinished()
+	{
+		if (_bodySprite is null)
+		{
+			return;
+		}
 
-        if (_bodySprite.Animation == "kick")
-        {
-            _kickPlaying = false;
-            _bodySprite.Play(_currentWalkAnim);
-            GD.Print("Player kick finished");
-            return;
-        }
+		if (_bodySprite.Animation == "kick")
+		{
+			_kickPlaying = false;
+			_bodySprite.Play(_currentWalkAnim);
+			GD.Print("Player kick finished");
+			return;
+		}
 
-        // Check if any attack animation finished
-        if (!IsAttackAnimation(_bodySprite.Animation))
-        {
-            return;
-        }
+		// Check if any attack animation finished
+		if (!IsAttackAnimation(_bodySprite.Animation))
+		{
+			return;
+		}
 
-        _attackPlaying = false;
-        _weaponWalkTimer = WeaponWalkDuration;
-        _bodySprite.Play(_currentWalkAnim);
-    }
+		_attackPlaying = false;
+		_weaponWalkTimer = WeaponWalkDuration;
+		_bodySprite.Play(_currentWalkAnim);
+	}
 
-    /// <summary>
-    /// Checks if the animation name is an attack animation.
-    /// Uses prefix matching to support any weapon type without hardcoding.
-    /// </summary>
-    private static bool IsAttackAnimation(StringName animation)
-    {
-        var name = animation.ToString();
-        return name.StartsWith("attack_", System.StringComparison.Ordinal);
-    }
+	/// <summary>
+	/// Checks if the animation name is an attack animation.
+	/// Uses prefix matching to support any weapon type without hardcoding.
+	/// </summary>
+	private static bool IsAttackAnimation(StringName animation)
+	{
+		var name = animation.ToString();
+		return name.StartsWith("attack_", System.StringComparison.Ordinal);
+	}
 
-    private void UpdateBodyAnimation(float delta)
-    {
-        if (_bodySprite is null)
-        {
-            return;
-        }
+	private void UpdateBodyAnimation(float delta)
+	{
+		if (_bodySprite is null)
+		{
+			return;
+		}
 
 		// Don't interfere with kick animation
 		if (_kickPlaying)

@@ -27,6 +27,11 @@ public partial class GameHUD : CanvasLayer
     private ProgressBar? _reloadBar;
     private WeaponManager? _weaponManager;
 
+    // Interaction tooltip
+    private PanelContainer? _interactionTooltip;
+    private Label? _interactionLabel;
+    private InteractionManager? _interactionManager;
+
     public override void _Ready()
     {
         // Create the HUD elements
@@ -41,6 +46,23 @@ public partial class GameHUD : CanvasLayer
         {
             gm.ColdExposureChanged += OnColdExposureChanged;
         }
+
+        // Connect to InteractionManager when available
+        CallDeferred(MethodName.ConnectToInteractionManager);
+    }
+
+    private void ConnectToInteractionManager()
+    {
+        _interactionManager = InteractionManager.Instance;
+        if (_interactionManager is not null)
+        {
+            _interactionManager.HoveredInteractableChanged += OnHoveredInteractableChanged;
+        }
+    }
+
+    private void OnHoveredInteractableChanged(Node? interactable)
+    {
+        UpdateInteractionTooltip();
     }
 
     private void CreateHUDElements()
@@ -188,6 +210,58 @@ public partial class GameHUD : CanvasLayer
             Visible = false
         };
         _weaponContainer.AddChild(_reloadBar);
+
+        // Interaction tooltip (centered, near bottom)
+        CreateInteractionTooltip();
+    }
+
+    private void CreateInteractionTooltip()
+    {
+        _interactionTooltip = new PanelContainer
+        {
+            AnchorLeft = 0.5f,
+            AnchorTop = 1f,
+            AnchorRight = 0.5f,
+            AnchorBottom = 1f,
+            OffsetLeft = -60f,
+            OffsetTop = -80f,
+            OffsetRight = 60f,
+            OffsetBottom = -50f,
+            Visible = false
+        };
+        AddChild(_interactionTooltip);
+
+        var margin = new MarginContainer();
+        margin.AddThemeConstantOverride("margin_left", 12);
+        margin.AddThemeConstantOverride("margin_right", 12);
+        margin.AddThemeConstantOverride("margin_top", 4);
+        margin.AddThemeConstantOverride("margin_bottom", 4);
+        _interactionTooltip.AddChild(margin);
+
+        _interactionLabel = new Label
+        {
+            Text = "[E] Interact",
+            HorizontalAlignment = HorizontalAlignment.Center
+        };
+        margin.AddChild(_interactionLabel);
+    }
+
+    private void UpdateInteractionTooltip()
+    {
+        if (_interactionTooltip is null || _interactionLabel is null)
+        {
+            return;
+        }
+
+        var interactable = InteractionManager.Instance?.HoveredInteractable;
+        if (interactable is null)
+        {
+            _interactionTooltip.Visible = false;
+            return;
+        }
+
+        _interactionLabel.Text = $"[E] {interactable.InteractionTooltip}";
+        _interactionTooltip.Visible = true;
     }
 
     public override void _Process(double delta)
@@ -199,6 +273,7 @@ public partial class GameHUD : CanvasLayer
         UpdateTimeDisplay();
         UpdateSlowMoDisplay();
         UpdateWeaponDisplay();
+        UpdateInteractionTooltip();
     }
 
     private void UpdatePlayerReference()
@@ -376,6 +451,11 @@ public partial class GameHUD : CanvasLayer
         if (gm is not null)
         {
             gm.ColdExposureChanged -= OnColdExposureChanged;
+        }
+
+        if (_interactionManager is not null)
+        {
+            _interactionManager.HoveredInteractableChanged -= OnHoveredInteractableChanged;
         }
     }
 }

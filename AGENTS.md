@@ -48,6 +48,7 @@ We are building a **Hotline Miami-feel** top-down prototype.
 **Testbed must always work.**
 - Do not break `scenes/Testbed.tscn`.
 - New work should be testable in Testbed via hotkeys/buttons.
+- Always build the project before delivering the summary
 
 If you add a new system, you must add a minimal way to trigger/test it in Testbed.
 
@@ -194,10 +195,10 @@ If something is ambiguous:
   - Windows: Set system environment variable `GODOT` to Godot executable path
 
 ### Building the Project
-```sh
+
 cd /path/to/DAIgame
 dotnet build
-```
+
 
 ### Build Warnings
 - Ignore build warnings about style formatting
@@ -217,10 +218,10 @@ dotnet build
 - **Do not modify Main.cs/Main.tscn** unless working on test infrastructure
 
 ### Code Coverage
-```sh
+
 chmod +x ./coverage.sh
 ./coverage.sh
-```
+
 
 ### Debug Configurations (VSCode)
 - **🕹 Debug Game** - Run game normally

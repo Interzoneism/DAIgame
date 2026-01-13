@@ -28,7 +28,7 @@ public partial class InventorySlotControl : PanelContainer
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Stop;
-        CustomMinimumSize = new Vector2(48, 48);
+        CustomMinimumSize = new Vector2(64, 64);
 
         _style = new StyleBoxFlat
         {
@@ -74,8 +74,10 @@ public partial class InventorySlotControl : PanelContainer
             Modulate = new Color(0.95f, 0.95f, 0.95f)
         };
         _stackLabel.SetAnchorsPreset(LayoutPreset.FullRect);
-        _stackLabel.AddThemeConstantOverride("margin_right", 2);
-        _stackLabel.AddThemeConstantOverride("margin_bottom", 1);
+        _stackLabel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        _stackLabel.SizeFlagsVertical = SizeFlags.ExpandFill;
+        _stackLabel.AddThemeConstantOverride("margin_right", 3);
+        _stackLabel.AddThemeConstantOverride("margin_bottom", 3);
         margin.AddChild(_stackLabel);
 
         _dropOverlay = new ColorRect
@@ -141,13 +143,13 @@ public partial class InventorySlotControl : PanelContainer
                 return;
             }
 
-            var inventoryScreen = InventoryScreen.Instance;
-            if (inventoryScreen is null)
+            var rightClickInventoryScreen = InventoryScreen.Instance;
+            if (rightClickInventoryScreen is null)
             {
                 return;
             }
 
-            if (inventoryScreen.TrySplitStack(Inventory, SlotType, SlotIndex))
+            if (rightClickInventoryScreen.TrySplitStack(Inventory, SlotType, SlotIndex))
             {
                 GetViewport().SetInputAsHandled();
             }
@@ -298,41 +300,13 @@ public partial class InventorySlotControl : PanelContainer
             { "from_slot", this }
         };
 
-        // Create composite preview: cursor + item centered at 48x48
-        const float iconSize = 48f;
-        var holdingCursor = GD.Load<Texture2D>("res://assets/cursor/holding_item.png");
-        var cursorSize = new Vector2(holdingCursor.GetWidth(), holdingCursor.GetHeight());
-
-        var previewContainer = new Control
+        // Hide Godot's built-in drag preview; the inventory screen draws the held icon centered on the cursor.
+        var emptyPreview = new Control
         {
-            CustomMinimumSize = cursorSize
+            CustomMinimumSize = Vector2.One,
+            MouseFilter = MouseFilterEnum.Ignore
         };
-
-        // Add cursor background
-        var cursorRect = new TextureRect
-        {
-            Texture = holdingCursor,
-            StretchMode = TextureRect.StretchModeEnum.KeepCentered
-        };
-        cursorRect.SetAnchorsPreset(LayoutPreset.FullRect);
-        previewContainer.AddChild(cursorRect);
-
-        // Add item icon on top, centered within the cursor area
-        var itemRect = new TextureRect
-        {
-            Texture = item.Icon,
-            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
-            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-            CustomMinimumSize = new Vector2(iconSize, iconSize),
-            // Center the item icon within the preview
-            Position = new Vector2((cursorSize.X - iconSize) / 2f, (cursorSize.Y - iconSize) / 2f),
-            Size = new Vector2(iconSize, iconSize)
-        };
-        previewContainer.AddChild(itemRect);
-
-        // Position so the center of the 48x48 icon aligns with mouse position
-        previewContainer.Position = new Vector2(-cursorSize.X / 2f, -cursorSize.Y / 2f);
-        SetDragPreview(previewContainer);
+        SetDragPreview(emptyPreview);
 
         inventoryScreen.SetDragActive(true);
 

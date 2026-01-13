@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3 uid="uid://bx3d1r6cnb3o1"]
+[gd_scene load_steps=16 format=3 uid="uid://bx3d1r6cnb3o1"]
 
 [ext_resource type="SpriteFrames" uid="uid://2navlis0yapa" path="res://assets/spriteframes/sprF_player.tres" id="1_4geon"]
 [ext_resource type="Script" path="res://scripts/Player/PlayerController.cs" id="2_player"]
@@ -11,6 +11,8 @@
 [ext_resource type="Resource" path="res://data/weapons/shotgun.tres" id="9_shotgun"]
 [ext_resource type="Resource" path="res://data/weapons/uzi.tres" id="10_uzi"]
 [ext_resource type="Resource" path="res://data/weapons/bat.tres" id="11_bat"]
+[ext_resource type="Script" path="res://scripts/Loot/LootHighlighter.cs" id="12_loothighlighter"]
+[ext_resource type="Script" path="res://scripts/Core/InteractionManager.cs" id="13_interactionmanager"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_ddj42"]
 
@@ -61,3 +63,10 @@ script = ExtResource("7_inventory")
 [node name="PlayerCamera" type="Camera2D" parent="."]
 zoom = Vector2(2, 2)
 script = ExtResource("7_camera")
+
+[node name="LootHighlighter" type="Node" parent="."]
+script = ExtResource("12_loothighlighter")
+HighlightRadius = 100.0
+
+[node name="InteractionManager" type="Node" parent="."]
+script = ExtResource("13_interactionmanager")
