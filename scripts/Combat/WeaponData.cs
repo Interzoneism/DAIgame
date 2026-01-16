@@ -128,6 +128,18 @@ public partial class WeaponData : Resource
     public float Knockback { get; set; } = 150f;
 
     /// <summary>
+    /// Base accuracy percentage (0-100). Higher accuracy reduces base spread.
+    /// </summary>
+    [Export]
+    public float Accuracy { get; set; } = 80f;
+
+    /// <summary>
+    /// Accuracy multiplier applied while aiming down sights.
+    /// </summary>
+    [Export]
+    public float AimDownSightsAccuracyMultiplier { get; set; } = 1.25f;
+
+    /// <summary>
     /// Base stability in degrees - maximum spread when accuracy is at 0%.
     /// At 100% accuracy, bullets go straight. At 0% accuracy, bullets spread up to Stability degrees.
     /// </summary>
@@ -277,6 +289,8 @@ public partial class WeaponData : Resource
             FireMode = FireMode,
             KnockbackPlayer = KnockbackPlayer,
             Knockback = Knockback,
+            Accuracy = Accuracy,
+            AimDownSightsAccuracyMultiplier = AimDownSightsAccuracyMultiplier,
             Stability = Stability,
             Recoil = Recoil,
             RecoilRecovery = RecoilRecovery,

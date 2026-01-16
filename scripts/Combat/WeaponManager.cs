@@ -54,6 +54,18 @@ public partial class WeaponManager : Node2D
     public Godot.Collections.Array<WeaponData> StartingWeapons { get; set; } = [];
 
     /// <summary>
+    /// Global recoil multiplier applied to all weapons.
+    /// </summary>
+    [Export]
+    public float RecoilMultiplier { get; set; } = 1f;
+
+    /// <summary>
+    /// Additional recoil multiplier applied while aiming down sights.
+    /// </summary>
+    [Export]
+    public float AimDownSightsRecoilMultiplier { get; set; } = 1f;
+
+    /// <summary>
     /// Currently equipped weapon data.
     /// </summary>
     public WeaponData? CurrentWeapon => CurrentWeaponIndex >= 0 && CurrentWeaponIndex < _weapons.Count
@@ -115,6 +127,11 @@ public partial class WeaponManager : Node2D
     /// Current accuracy penalty from accumulated recoil (0 = no penalty, grows with each shot).
     /// </summary>
     public float CurrentRecoilPenalty { get; private set; }
+
+    /// <summary>
+    /// True when the player is aiming down sights.
+    /// </summary>
+    public bool IsAimingDownSights { get; private set; }
 
     /// <summary>
     /// Number of shots fired within the recovery window (for warmup tracking).
@@ -198,7 +215,7 @@ public partial class WeaponManager : Node2D
         // Apply recoil penalty only after warmup shots
         if (ShotsFiredInBurst > weapon.RecoilWarmup)
         {
-            CurrentRecoilPenalty += weapon.Recoil;
+            CurrentRecoilPenalty += weapon.Recoil * GetRecoilMultiplier();
         }
     }
 
@@ -576,6 +593,11 @@ public partial class WeaponManager : Node2D
     /// </summary>
     public bool ShouldContinueFiring() => CurrentWeapon?.FireMode == WeaponFireMode.Automatic;
 
+    public void SetAimDownSights(bool isAiming)
+    {
+        IsAimingDownSights = isAiming;
+    }
+
     private void FireProjectiles(Vector2 origin, Vector2 direction, WeaponData weapon)
     {
         if (BulletScene is null)
@@ -595,9 +617,12 @@ public partial class WeaponManager : Node2D
 
         var pelletCount = weapon.PelletCount;
 
-        // Calculate effective spread: base stability + accumulated recoil penalty
-        // Stability is the base inaccuracy in degrees, recoil adds more inaccuracy per shot
-        var effectiveSpreadDeg = weapon.Stability + CurrentRecoilPenalty;
+        // Calculate effective spread: accuracy-scaled stability + accumulated recoil penalty
+        // Stability is the max inaccuracy at 0% accuracy; higher accuracy reduces base spread.
+        var accuracyPercent = GetAccuracyPercent(weapon);
+        var accuracyFactor = 1f - (accuracyPercent / 100f);
+        var stabilitySpreadDeg = weapon.Stability * Mathf.Clamp(accuracyFactor, 0f, 1f);
+        var effectiveSpreadDeg = stabilitySpreadDeg + CurrentRecoilPenalty;
         // Also add weapon's SpreadAngle for shotgun-style spread on top
         var totalSpreadDeg = effectiveSpreadDeg + weapon.SpreadAngle;
         var spreadRad = Mathf.DegToRad(totalSpreadDeg);
@@ -629,7 +654,29 @@ public partial class WeaponManager : Node2D
             bullet.Initialize(pelletDir);
         }
 
-        GD.Print($"WeaponManager: Fired {pelletCount} projectile(s) from {weapon.DisplayName} (spread: {totalSpreadDeg:F1}° = stability {weapon.Stability:F1}° + recoil {CurrentRecoilPenalty:F1}° + weapon spread {weapon.SpreadAngle:F1}°)");
+        GD.Print($"WeaponManager: Fired {pelletCount} projectile(s) from {weapon.DisplayName} (spread: {totalSpreadDeg:F1}° = stability {stabilitySpreadDeg:F1}° @ {accuracyPercent:F0}% + recoil {CurrentRecoilPenalty:F1}° + weapon spread {weapon.SpreadAngle:F1}°)");
+    }
+
+    private float GetAccuracyPercent(WeaponData weapon)
+    {
+        var accuracy = weapon.Accuracy;
+        if (IsAimingDownSights)
+        {
+            accuracy *= weapon.AimDownSightsAccuracyMultiplier;
+        }
+
+        return Mathf.Clamp(accuracy, 0f, 100f);
+    }
+
+    private float GetRecoilMultiplier()
+    {
+        var multiplier = RecoilMultiplier;
+        if (IsAimingDownSights)
+        {
+            multiplier *= AimDownSightsRecoilMultiplier;
+        }
+
+        return multiplier;
     }
 
     /// <summary>

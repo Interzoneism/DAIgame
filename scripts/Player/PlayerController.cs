@@ -93,6 +93,18 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 	public float BaseTurnSpeed { get; set; } = 20f;
 
 	/// <summary>
+	/// Movement speed multiplier while aiming down sights.
+	/// </summary>
+	[Export]
+	public float AimDownSightsMoveSpeedMultiplier { get; set; } = 0.5f;
+
+	/// <summary>
+	/// Turn speed multiplier while aiming down sights.
+	/// </summary>
+	[Export]
+	public float AimDownSightsTurnSpeedMultiplier { get; set; } = 0.5f;
+
+	/// <summary>
 	/// Maximum backward movement penalty (0.3 = 30% slower).
 	/// </summary>
 	private const float MaxBackwardPenalty = 0.3f;
@@ -190,6 +202,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 	private bool _kickDamagePending;
 	private float _kickDamageTimer;
 	private bool _isMoving;
+	private bool _isAimingDownSights;
 	private float _hitFlashTimer;
 	private float _staminaRegenDelayTimer;
 	private string _currentWalkAnim = "walk";
@@ -288,11 +301,13 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		// Disable all player actions when inventory is open
 		if (CursorManager.Instance?.IsInventoryOpen == true)
 		{
+			UpdateAimDownSightsState(true);
 			UpdateHitFlash((float)delta);
 			UpdateStamina((float)delta);
 			return;
 		}
 
+		UpdateAimDownSightsState();
 		RotateTowardsMouse();
 		HandleFire();
 		HandleWeaponSwitch();
@@ -369,6 +384,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 			return;
 		}
 
+		UpdateAimDownSightsState();
 		HandleMovement();
 		ApplyKnockbackDamp((float)delta);
 	}
@@ -397,6 +413,11 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 
 		// Apply backward movement penalty when moving away from aim direction
 		speedMultiplier *= CalculateBackwardPenaltyMultiplier(inputDir);
+
+		if (_isAimingDownSights)
+		{
+			speedMultiplier *= AimDownSightsMoveSpeedMultiplier;
+		}
 
 		Velocity = (inputDir * MoveSpeed * speedMultiplier) + _knockbackVelocity;
 		MoveAndSlide();
@@ -471,6 +492,11 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		var dexModifier = 1f + ((Dexterity - 10) * DexTurnSpeedScale);
 		var turnSpeed = BaseTurnSpeed * Mathf.Max(dexModifier, 0.2f);
 
+		if (_isAimingDownSights)
+		{
+			turnSpeed *= AimDownSightsTurnSpeedMultiplier;
+		}
+
 		// Calculate the shortest angular distance
 		var currentAngle = _bodyNode.Rotation;
 		var angleDiff = Mathf.Wrap(targetAngle - currentAngle, -Mathf.Pi, Mathf.Pi);
@@ -485,6 +511,16 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 
 		_bodyNode.Rotation = newAngle;
 		_aimDirection = new Vector2(Mathf.Cos(newAngle), Mathf.Sin(newAngle));
+	}
+
+	private void UpdateAimDownSightsState(bool forceDisable = false)
+	{
+		var canAim = !forceDisable
+			&& Input.IsActionPressed("Aim")
+			&& _weaponManager?.CurrentWeapon is { IsMelee: false };
+
+		_isAimingDownSights = canAim;
+		_weaponManager?.SetAimDownSights(canAim);
 	}
 
 	private void HandleFire()
