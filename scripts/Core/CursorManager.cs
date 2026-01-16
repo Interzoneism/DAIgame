@@ -1,28 +1,28 @@
 namespace DAIgame.Core;
 
+using DAIgame.UI;
 using Godot;
 
 /// <summary>
-/// Manages custom cursors based on game state.
-/// Handles cursor switching for inventory, combat, and drag-drop states.
-/// Uses Godot's native cursor system with consistent hotspot positioning.
+/// Manages custom cursors and reticule based on game state.
+/// Handles cursor switching for inventory and shows dynamic reticule for combat.
 /// </summary>
 public partial class CursorManager : Node
 {
     // Cursor hotspot positions (in pixels from top-left of cursor image)
     // Pointer cursor: tip of the arrow (typically top-left area, but adjust based on actual sprite)
     private static readonly Vector2 PointerHotspot = new(4, 2);
-    // Centered cursor for aim - calculated from texture size
-    private Vector2 _aimHotspot;
 
     private Texture2D? _pointerCursor;
-    private Texture2D? _aimCursor;
     private bool _weaponEquipped;
     private bool _hoveringItem;
     private bool _holdingItem;
 
     // Track current cursor to avoid redundant updates
     private Texture2D? _currentCursor;
+
+    // Dynamic reticule for weapon aiming
+    private Reticule? _reticule;
 
     /// <summary>
     /// Whether the inventory screen is currently open.
@@ -37,11 +37,20 @@ public partial class CursorManager : Node
 
         // Load cursor textures
         _pointerCursor = GD.Load<Texture2D>("res://assets/cursor/pointer.png");
-        _aimCursor = GD.Load<Texture2D>("res://assets/cursor/aim.png");
-        // Calculate centered hotspot for aim cursor
-        if (_aimCursor is not null)
+
+        // Create reticule
+        var reticuleScene = GD.Load<PackedScene>("res://scenes/UI/Reticule.tscn");
+        if (reticuleScene is not null)
         {
-            _aimHotspot = new Vector2(_aimCursor.GetWidth() / 2f, _aimCursor.GetHeight() / 2f);
+            _reticule = reticuleScene.Instantiate<Reticule>();
+            // Add to tree with higher z-index to ensure it draws on top
+            _reticule.ZIndex = 100;
+            GetTree().Root.AddChild(_reticule);
+            _reticule.ShowReticule(false);
+        }
+        else
+        {
+            GD.PrintErr("CursorManager: Failed to load Reticule scene!");
         }
 
         UpdateCursor();
@@ -86,35 +95,46 @@ public partial class CursorManager : Node
 
     private void UpdateCursor()
     {
-        Texture2D? cursorTexture;
-        Vector2 hotspot;
+        // Show reticule when weapon is equipped and not in inventory
+        var shouldShowReticule = _weaponEquipped && !IsInventoryOpen;
+        _reticule?.ShowReticule(shouldShowReticule);
 
-        // Priority order: weapon equipped > default pointer
-        if (_weaponEquipped && !IsInventoryOpen && _aimCursor is not null)
+        // When reticule is active, hide the system cursor
+        if (shouldShowReticule)
         {
-            cursorTexture = _aimCursor;
-            hotspot = _aimHotspot;
-        }
-        else if (_pointerCursor is not null)
-        {
-            cursorTexture = _pointerCursor;
-            hotspot = PointerHotspot;
+            // Hide the cursor by setting it to an empty texture
+            Input.SetCustomMouseCursor(null);
+            _currentCursor = null;
+            GD.Print("CursorManager: Hiding cursor, showing reticule");
         }
         else
         {
-            GD.PrintErr("CursorManager: No cursor texture available!");
-            return;
-        }
+            // Show pointer cursor
+            if (_pointerCursor is null)
+            {
+                GD.PrintErr("CursorManager: No cursor texture available!");
+                return;
+            }
 
-        // Avoid redundant cursor updates
-        if (_currentCursor == cursorTexture)
-        {
-            return;
-        }
+            // Avoid redundant cursor updates
+            if (_currentCursor == _pointerCursor)
+            {
+                return;
+            }
 
-        _currentCursor = cursorTexture;
-        Input.SetCustomMouseCursor(cursorTexture, Input.CursorShape.Arrow, hotspot);
-        GD.Print($"CursorManager: Switching to cursor with hotspot {hotspot}");
+            _currentCursor = _pointerCursor;
+            Input.SetCustomMouseCursor(_pointerCursor, Input.CursorShape.Arrow, PointerHotspot);
+            GD.Print("CursorManager: Showing pointer cursor");
+        }
+    }
+
+    /// <summary>
+    /// Updates the reticule's accuracy value (0-100).
+    /// Called by WeaponManager to reflect current weapon accuracy.
+    /// </summary>
+    public void SetReticuleAccuracy(float accuracyPercent)
+    {
+        _reticule?.SetAccuracy(accuracyPercent);
     }
 
     public override void _ExitTree()

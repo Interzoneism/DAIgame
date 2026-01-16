@@ -11,10 +11,9 @@ using Godot;
 public partial class PlayerController : CharacterBody2D, IDamageable
 {
 	/// <summary>
-	/// Movement speed in pixels per second.
+	/// Stats manager that provides all derived stats from attributes, feats, and equipment.
 	/// </summary>
-	[Export]
-	public float MoveSpeed { get; set; } = 200f;
+	private PlayerStatsManager? _statsManager;
 
 	/// <summary>
 	/// Rate at which knockback is damped per second.
@@ -27,12 +26,6 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 	/// </summary>
 	[Export]
 	public float WeaponWalkDuration { get; set; } = 2f;
-
-	/// <summary>
-	/// Maximum health of the player.
-	/// </summary>
-	[Export]
-	public float MaxHealth { get; set; } = 100f;
 
 	/// <summary>
 	/// Amount of health restored per heal item use.
@@ -52,46 +45,6 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 	[Export]
 	public float HitFlashDuration { get; set; } = 0.1f;
 
-	#region Player Attributes
-
-	/// <summary>
-	/// Strength attribute. Affects melee damage and carrying capacity.
-	/// </summary>
-	[Export]
-	public int Strength { get; set; } = 10;
-
-	/// <summary>
-	/// Dexterity attribute. Affects aim turning speed and reduces backward movement penalty.
-	/// </summary>
-	[Export]
-	public int Dexterity { get; set; } = 10;
-
-	/// <summary>
-	/// Constitution attribute. Affects health and resistance.
-	/// </summary>
-	[Export]
-	public int Constitution { get; set; } = 10;
-
-	/// <summary>
-	/// Intelligence attribute. Affects crafting and tech abilities.
-	/// </summary>
-	[Export]
-	public int Intelligence { get; set; } = 10;
-
-	/// <summary>
-	/// Intuition attribute. Affects perception and awareness.
-	/// </summary>
-	[Export]
-	public int Intuition { get; set; } = 10;
-
-	#endregion
-
-	/// <summary>
-	/// Base turning speed in radians per second for aiming.
-	/// </summary>
-	[Export]
-	public float BaseTurnSpeed { get; set; } = 20f;
-
 	/// <summary>
 	/// Movement speed multiplier while aiming down sights.
 	/// </summary>
@@ -105,43 +58,10 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 	public float AimDownSightsTurnSpeedMultiplier { get; set; } = 0.5f;
 
 	/// <summary>
-	/// Maximum backward movement penalty (0.3 = 30% slower).
-	/// </summary>
-	private const float MaxBackwardPenalty = 0.3f;
-
-	/// <summary>
-	/// Dexterity offset per point above/below 10 for backward penalty (2% per point).
-	/// </summary>
-	private const float DexBackwardPenaltyOffset = 0.02f;
-
-	/// <summary>
-	/// Dexterity scaling for turn speed (5% per point above/below 10).
-	/// </summary>
-	private const float DexTurnSpeedScale = 0.05f;
-
-	/// <summary>
-	/// Maximum stamina of the player.
-	/// </summary>
-	[Export]
-	public float MaxStamina { get; set; } = 100f;
-
-	/// <summary>
-	/// Stamina regeneration rate per second.
-	/// </summary>
-	[Export]
-	public float StaminaRegenRate { get; set; } = 25f;
-
-	/// <summary>
 	/// Delay in seconds after using stamina before regeneration starts.
 	/// </summary>
 	[Export]
 	public float StaminaRegenDelay { get; set; } = 0.5f;
-
-	/// <summary>
-	/// Stamina cost for kick attacks.
-	/// </summary>
-	[Export]
-	public float KickStaminaCost { get; set; } = 20f;
 
 	/// <summary>
 	/// Number of healing items the player has.
@@ -157,6 +77,16 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 	/// Current stamina of the player.
 	/// </summary>
 	public float CurrentStamina { get; private set; }
+
+	/// <summary>
+	/// Gets max health from stats manager.
+	/// </summary>
+	public float MaxHealth => _statsManager?.MaxHealth ?? 100f;
+
+	/// <summary>
+	/// Gets max stamina from stats manager.
+	/// </summary>
+	public float MaxStamina => _statsManager?.MaxStamina ?? 100f;
 
 	/// <summary>
 	/// Movement speed multiplier during kick animation (1/8 of normal).
@@ -216,8 +146,17 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		AddToGroup("player");
 		AddToGroup("damageable");
 
-		CurrentHealth = MaxHealth;
-		CurrentStamina = MaxStamina;
+		// Get or create PlayerStatsManager
+		_statsManager = GetNodeOrNull<PlayerStatsManager>("PlayerStatsManager");
+		if (_statsManager is null)
+		{
+			_statsManager = new PlayerStatsManager();
+			AddChild(_statsManager);
+			GD.Print("[PlayerController] Created PlayerStatsManager");
+		}
+
+		CurrentHealth = _statsManager.MaxHealth;
+		CurrentStamina = _statsManager.MaxStamina;
 
 		_bodyNode = GetNodeOrNull<Node2D>("Body");
 		_bodySprite = _bodyNode?.GetNodeOrNull<AnimatedSprite2D>("AnimatedSprite2D");
@@ -332,9 +271,12 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 			return;
 		}
 
-		if (CurrentStamina < MaxStamina)
+		var maxStamina = _statsManager?.MaxStamina ?? 100f;
+		var staminaRegen = _statsManager?.StaminaRegen ?? 25f;
+
+		if (CurrentStamina < maxStamina)
 		{
-			CurrentStamina = Mathf.Min(CurrentStamina + (StaminaRegenRate * delta), MaxStamina);
+			CurrentStamina = Mathf.Min(CurrentStamina + (staminaRegen * delta), maxStamina);
 		}
 	}
 
@@ -353,7 +295,8 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 
 		CurrentStamina -= amount;
 		_staminaRegenDelayTimer = StaminaRegenDelay;
-		GD.Print($"Consumed {amount} stamina. Remaining: {CurrentStamina:F1}/{MaxStamina}");
+		var maxStamina = _statsManager?.MaxStamina ?? 100f;
+		GD.Print($"Consumed {amount} stamina. Remaining: {CurrentStamina:F1}/{maxStamina}");
 		return true;
 	}
 
@@ -419,7 +362,8 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 			speedMultiplier *= AimDownSightsMoveSpeedMultiplier;
 		}
 
-		Velocity = (inputDir * MoveSpeed * speedMultiplier) + _knockbackVelocity;
+		var moveSpeed = _statsManager?.MoveSpeed ?? 200f;
+		Velocity = (inputDir * moveSpeed * speedMultiplier) + _knockbackVelocity;
 		MoveAndSlide();
 
 		UpdateLegsFacing(inputDir);
@@ -449,12 +393,11 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		// Calculate how far past 90 degrees we are (0 at 90°, 1 at 180°)
 		var penaltyFactor = (angleBetween - (Mathf.Pi / 2f)) / (Mathf.Pi / 2f);
 
-		// Base penalty scaled by how far backward we're moving
-		var basePenalty = MaxBackwardPenalty * penaltyFactor;
+		// Get penalty from stats manager (already calculated from attributes)
+		var backpedalPenalty = _statsManager?.BackpedalPenalty ?? 0.5f;
 
-		// Dexterity offset: each point above 10 reduces penalty, below 10 increases it
-		var dexOffset = (Dexterity - 10) * DexBackwardPenaltyOffset;
-		var finalPenalty = Mathf.Clamp(basePenalty - dexOffset, 0f, 0.5f);
+		// Apply penalty scaled by how far backward we're moving
+		var finalPenalty = backpedalPenalty * penaltyFactor;
 
 		return 1f - finalPenalty;
 	}
@@ -488,9 +431,8 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 			return;
 		}
 
-		// Calculate dexterity-modified turn speed
-		var dexModifier = 1f + ((Dexterity - 10) * DexTurnSpeedScale);
-		var turnSpeed = BaseTurnSpeed * Mathf.Max(dexModifier, 0.2f);
+		// Get turn speed from stats manager (already calculated from attributes)
+		var turnSpeed = _statsManager?.TurnSpeed ?? 20f;
 
 		if (_isAimingDownSights)
 		{
@@ -650,16 +592,18 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 			return;
 		}
 
-		if (CurrentHealth >= MaxHealth)
+		var maxHealth = _statsManager?.MaxHealth ?? 100f;
+		if (CurrentHealth >= maxHealth)
 		{
 			GD.Print("Already at full health!");
 			return;
 		}
 
+		maxHealth = _statsManager?.MaxHealth ?? 100f;
 		HealingItems--;
-		var healedAmount = Mathf.Min(HealAmount, MaxHealth - CurrentHealth);
-		CurrentHealth = Mathf.Min(CurrentHealth + HealAmount, MaxHealth);
-		GD.Print($"Healed {healedAmount}! Health: {CurrentHealth}/{MaxHealth} (Items left: {HealingItems})");
+		var healedAmount = Mathf.Min(HealAmount, maxHealth - CurrentHealth);
+		CurrentHealth = Mathf.Min(CurrentHealth + HealAmount, maxHealth);
+		GD.Print($"Healed {healedAmount}! Health: {CurrentHealth}/{maxHealth} (Items left: {HealingItems})");
 	}
 
 	/// <summary>
@@ -685,7 +629,8 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		}
 
 		// Check stamina for kick
-		if (!TryConsumeStamina(KickStaminaCost))
+		var kickCost = _statsManager?.KickCost ?? 20f;
+		if (!TryConsumeStamina(kickCost))
 		{
 			return;
 		}
@@ -1010,8 +955,9 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 	/// </summary>
 	public void ApplyDamage(float amount, Vector2 fromPos, Vector2 hitPos, Vector2 hitNormal)
 	{
+		var maxHealth = _statsManager?.MaxHealth ?? 100f;
 		CurrentHealth -= amount;
-		GD.Print($"Player took {amount} damage! Health: {CurrentHealth}/{MaxHealth}");
+		GD.Print($"Player took {amount} damage! Health: {CurrentHealth}/{maxHealth}");
 
 		// Apply knockback away from damage source
 		var knockbackDir = (GlobalPosition - fromPos).Normalized();
@@ -1073,6 +1019,6 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		GD.Print("Player died!");
 		// For now, just restart by resetting health
 		// Later this could trigger a death screen or respawn system
-		CurrentHealth = MaxHealth;
+		CurrentHealth = _statsManager?.MaxHealth ?? 100f;
 	}
 }

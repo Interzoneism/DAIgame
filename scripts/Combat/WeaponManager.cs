@@ -1,6 +1,7 @@
 namespace DAIgame.Combat;
 
 using System.Collections.Generic;
+using DAIgame.Core;
 using DAIgame.Player;
 using Godot;
 
@@ -185,6 +186,21 @@ public partial class WeaponManager : Node2D
 
         UpdateReload(dt);
         UpdateRecoilRecovery(dt);
+        UpdateReticuleAccuracy();
+    }
+
+    private void UpdateReticuleAccuracy()
+    {
+        // Update reticule spread based on current weapon accuracy
+        var weapon = CurrentWeapon;
+        if (weapon is null || weapon.IsMelee)
+        {
+            CursorManager.Instance?.SetReticuleAccuracy(100f);
+            return;
+        }
+
+        var accuracy = GetAccuracyPercent(weapon);
+        CursorManager.Instance?.SetReticuleAccuracy(accuracy);
     }
 
     private void UpdateRecoilRecovery(float delta)

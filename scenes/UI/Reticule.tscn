@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://c3vqx8r7y2mqo"]
+
+[ext_resource type="Script" path="res://scripts/UI/Reticule.cs" id="1_reticule"]
+
+[node name="Reticule" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_reticule")
