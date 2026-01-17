@@ -64,8 +64,8 @@ public partial class Reticule : Control
             return;
         }
 
-        // Position at mouse cursor
-        Position = GetViewport().GetMousePosition();
+        // Use global mouse position within the CanvasLayer
+        Position = GetGlobalMousePosition();
 
         // Queue redraw to update the reticule
         QueueRedraw();
@@ -79,8 +79,6 @@ public partial class Reticule : Control
         }
 
         // Calculate gap based on accuracy
-        // At 100% accuracy: MinGap
-        // At 0% accuracy: MaxGap
         var accuracyFactor = Mathf.Clamp(_currentAccuracy / 100f, 0f, 1f);
         var gap = Mathf.Lerp(MaxGap, MinGap, accuracyFactor);
 

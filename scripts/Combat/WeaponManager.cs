@@ -147,6 +147,8 @@ public partial class WeaponManager : Node2D
     private float _recoilRecoveryTimer;
     private RandomNumberGenerator _rng = new();
     private PlayerInventory? _inventory;
+    private int _lastReticuleWeaponIndex = -1;
+    private bool _lastReticuleWasRanged;
 
     public override void _Ready()
     {
@@ -191,16 +193,29 @@ public partial class WeaponManager : Node2D
 
     private void UpdateReticuleAccuracy()
     {
-        // Update reticule spread based on current weapon accuracy
         var weapon = CurrentWeapon;
         if (weapon is null || weapon.IsMelee)
         {
             CursorManager.Instance?.SetReticuleAccuracy(100f);
+            if (_lastReticuleWasRanged)
+            {
+                _lastReticuleWasRanged = false;
+                GD.Print("WeaponManager: Reticule accuracy reset (no ranged weapon equipped).");
+            }
             return;
         }
 
-        var accuracy = GetAccuracyPercent(weapon);
-        CursorManager.Instance?.SetReticuleAccuracy(accuracy);
+        var totalAccuracy = GetTotalAccuracyPercent();
+        CursorManager.Instance?.SetReticuleAccuracy(totalAccuracy);
+
+        if (!_lastReticuleWasRanged || _lastReticuleWeaponIndex != CurrentWeaponIndex)
+        {
+            _lastReticuleWasRanged = true;
+            _lastReticuleWeaponIndex = CurrentWeaponIndex;
+            var totalSpreadDeg = GetTotalSpreadDegrees(weapon);
+            var maxInaccuracyDeg = GetMaxInaccuracyDegrees(weapon);
+            GD.Print($"WeaponManager: Reticule accuracy {totalAccuracy:F1}% for {weapon.DisplayName} (spread {totalSpreadDeg:F1}° / max {maxInaccuracyDeg:F1}°)");
+        }
     }
 
     private void UpdateRecoilRecovery(float delta)
@@ -635,12 +650,9 @@ public partial class WeaponManager : Node2D
 
         // Calculate effective spread: accuracy-scaled stability + accumulated recoil penalty
         // Stability is the max inaccuracy at 0% accuracy; higher accuracy reduces base spread.
-        var accuracyPercent = GetAccuracyPercent(weapon);
-        var accuracyFactor = 1f - (accuracyPercent / 100f);
-        var stabilitySpreadDeg = weapon.Stability * Mathf.Clamp(accuracyFactor, 0f, 1f);
-        var effectiveSpreadDeg = stabilitySpreadDeg + CurrentRecoilPenalty;
-        // Also add weapon's SpreadAngle for shotgun-style spread on top
-        var totalSpreadDeg = effectiveSpreadDeg + weapon.SpreadAngle;
+        var accuracyPercent = GetBaseAccuracyPercent(weapon);
+        var stabilitySpreadDeg = GetStabilitySpreadDegrees(weapon, accuracyPercent);
+        var totalSpreadDeg = GetTotalSpreadDegrees(weapon);
         var spreadRad = Mathf.DegToRad(totalSpreadDeg);
         var baseAngle = direction.Angle();
 
@@ -673,7 +685,24 @@ public partial class WeaponManager : Node2D
         GD.Print($"WeaponManager: Fired {pelletCount} projectile(s) from {weapon.DisplayName} (spread: {totalSpreadDeg:F1}° = stability {stabilitySpreadDeg:F1}° @ {accuracyPercent:F0}% + recoil {CurrentRecoilPenalty:F1}° + weapon spread {weapon.SpreadAngle:F1}°)");
     }
 
-    private float GetAccuracyPercent(WeaponData weapon)
+    /// <summary>
+    /// Gets the current total accuracy percentage for the equipped weapon after recoil and spread.
+    /// </summary>
+    public float GetTotalAccuracyPercent()
+    {
+        var weapon = CurrentWeapon;
+        if (weapon is null || weapon.IsMelee)
+        {
+            return 100f;
+        }
+
+        var totalSpreadDeg = GetTotalSpreadDegrees(weapon);
+        var maxInaccuracyDeg = GetMaxInaccuracyDegrees(weapon);
+        var accuracy = 100f - ((totalSpreadDeg / maxInaccuracyDeg) * 100f);
+        return Mathf.Clamp(accuracy, 0f, 100f);
+    }
+
+    private float GetBaseAccuracyPercent(WeaponData weapon)
     {
         var accuracy = weapon.Accuracy;
         if (IsAimingDownSights)
@@ -682,6 +711,25 @@ public partial class WeaponManager : Node2D
         }
 
         return Mathf.Clamp(accuracy, 0f, 100f);
+    }
+
+    private float GetStabilitySpreadDegrees(WeaponData weapon, float accuracyPercent)
+    {
+        var accuracyFactor = 1f - (accuracyPercent / 100f);
+        return weapon.Stability * Mathf.Clamp(accuracyFactor, 0f, 1f);
+    }
+
+    private float GetTotalSpreadDegrees(WeaponData weapon)
+    {
+        var accuracyPercent = GetBaseAccuracyPercent(weapon);
+        var stabilitySpreadDeg = GetStabilitySpreadDegrees(weapon, accuracyPercent);
+        return stabilitySpreadDeg + CurrentRecoilPenalty + weapon.SpreadAngle;
+    }
+
+    private static float GetMaxInaccuracyDegrees(WeaponData weapon)
+    {
+        var maxInaccuracy = weapon.Stability + weapon.SpreadAngle;
+        return maxInaccuracy > 0f ? maxInaccuracy : 10f;
     }
 
     private float GetRecoilMultiplier()

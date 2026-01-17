@@ -23,6 +23,7 @@ public partial class CursorManager : Node
 
     // Dynamic reticule for weapon aiming
     private Reticule? _reticule;
+    private CanvasLayer? _reticuleLayer;
 
     /// <summary>
     /// Whether the inventory screen is currently open.
@@ -38,15 +39,18 @@ public partial class CursorManager : Node
         // Load cursor textures
         _pointerCursor = GD.Load<Texture2D>("res://assets/cursor/pointer.png");
 
-        // Create reticule
+        // Create reticule and its dedicated canvas layer to ensure it's on top
         var reticuleScene = GD.Load<PackedScene>("res://scenes/UI/Reticule.tscn");
         if (reticuleScene is not null)
         {
+            _reticuleLayer = new CanvasLayer();
+            _reticuleLayer.Layer = 100; // Above most HUD elements
+            GetTree().Root.AddChild(_reticuleLayer);
+
             _reticule = reticuleScene.Instantiate<Reticule>();
-            // Add to tree with higher z-index to ensure it draws on top
-            _reticule.ZIndex = 100;
-            GetTree().Root.AddChild(_reticule);
+            _reticuleLayer.AddChild(_reticule);
             _reticule.ShowReticule(false);
+            GD.Print("CursorManager: Reticule instantiated and added to CanvasLayer 100");
         }
         else
         {
@@ -97,26 +101,39 @@ public partial class CursorManager : Node
     {
         // Show reticule when weapon is equipped and not in inventory
         var shouldShowReticule = _weaponEquipped && !IsInventoryOpen;
-        _reticule?.ShowReticule(shouldShowReticule);
+
+        if (_reticule != null)
+        {
+            _reticule.ShowReticule(shouldShowReticule);
+        }
+        else
+        {
+            GD.PrintErr("CursorManager: _reticule is NULL in UpdateCursor!");
+        }
 
         // When reticule is active, hide the system cursor
         if (shouldShowReticule)
         {
-            // Hide the cursor by setting it to an empty texture
+            // Reset custom cursor
             Input.SetCustomMouseCursor(null);
+
+            // Hide the system mouse cursor completely
+            Input.MouseMode = Input.MouseModeEnum.Hidden;
             _currentCursor = null;
-            GD.Print("CursorManager: Hiding cursor, showing reticule");
         }
         else
         {
+            // Ensure system cursor is visible
+            Input.MouseMode = Input.MouseModeEnum.Visible;
+
             // Show pointer cursor
             if (_pointerCursor is null)
             {
-                GD.PrintErr("CursorManager: No cursor texture available!");
+                GD.PrintErr("CursorManager: No pointer cursor texture loaded!");
                 return;
             }
 
-            // Avoid redundant cursor updates
+            // Avoid redundant cursor updates if already using this texture
             if (_currentCursor == _pointerCursor)
             {
                 return;
@@ -124,7 +141,6 @@ public partial class CursorManager : Node
 
             _currentCursor = _pointerCursor;
             Input.SetCustomMouseCursor(_pointerCursor, Input.CursorShape.Arrow, PointerHotspot);
-            GD.Print("CursorManager: Showing pointer cursor");
         }
     }
 
@@ -139,6 +155,11 @@ public partial class CursorManager : Node
 
     public override void _ExitTree()
     {
+        if (_reticuleLayer is not null)
+        {
+            _reticuleLayer.QueueFree();
+        }
+
         if (Instance == this)
         {
             Instance = null;

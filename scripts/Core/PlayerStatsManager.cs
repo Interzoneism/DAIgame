@@ -15,9 +15,9 @@ public partial class PlayerStatsManager : Node
     private const int DefaultAttributeValue = 10;
 
     // Mobility
-    private const float BaseMoveSpeed = 200f;
+    private const float BaseMoveSpeed = 100f;
     private const float BaseSprintSpeedMult = 1.5f;
-    private const float BaseTurnSpeed = 20f;
+    private const float BaseTurnSpeed = 10f;
     private const float BaseBackpedalPenalty = 0.5f;
     private const float BaseCrouchSpeedMult = 0.5f;
 
