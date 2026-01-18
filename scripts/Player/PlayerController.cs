@@ -269,10 +269,8 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		{
 			_currentAttackFrameCount = frames.GetFrameCount(_currentAttackAnim);
 			_baseAttackAnimSpeed = (float)frames.GetAnimationSpeed(_currentAttackAnim);
-			GD.Print($"PlayerController: Attack anim '{_currentAttackAnim}' has {_currentAttackFrameCount} frames at base speed {_baseAttackAnimSpeed}");
 		}
 
-		GD.Print($"PlayerController: Weapon changed to {weapon.DisplayName}, walk={_currentWalkAnim}, attack={_currentAttackAnim}");
 
 		// Update current animation if not attacking or kicking
 		if (!_attackPlaying && !_kickPlaying && _bodySprite is not null)
@@ -332,13 +330,11 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 	{
 		if (CurrentStamina < amount)
 		{
-			GD.Print($"Not enough stamina! Need {amount}, have {CurrentStamina:F1}");
 			return false;
 		}
 
 		CurrentStamina -= amount;
 		_staminaRegenDelayTimer = StaminaRegenDelay;
-		GD.Print($"Consumed {amount} stamina. Remaining: {CurrentStamina:F1}/{MaxStamina}");
 		return true;
 	}
 
@@ -610,30 +606,24 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 
 		if (HealingItems <= 0)
 		{
-			GD.Print("No healing items remaining!");
 			return;
 		}
 
 		if (CurrentHealth >= MaxHealth)
 		{
-			GD.Print("Already at full health!");
 			return;
 		}
 
 		HealingItems--;
-		var healedAmount = Mathf.Min(HealAmount, MaxHealth - CurrentHealth);
-		CurrentHealth = Mathf.Min(CurrentHealth + HealAmount, MaxHealth);
-		GD.Print($"Healed {healedAmount}! Health: {CurrentHealth}/{MaxHealth} (Items left: {HealingItems})");
+
+        _ = Mathf.Min(HealAmount, MaxHealth - CurrentHealth);
+        CurrentHealth = Mathf.Min(CurrentHealth + HealAmount, MaxHealth);
 	}
 
-	/// <summary>
+    /// <summary>
 	/// Adds healing items to the player's inventory.
 	/// </summary>
-	public void AddHealingItems(int count)
-	{
-		HealingItems += count;
-		GD.Print($"Picked up {count} healing item(s). Total: {HealingItems}");
-	}
+	public void AddHealingItems(int count) => HealingItems += count;
 
 	private void HandleKick()
 	{
@@ -701,7 +691,6 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		var enemies = GetTree().GetNodesInGroup("enemies");
 		var kickOrigin = GlobalPosition;
 
-		GD.Print($"PerformKickDamage: checking {enemies.Count} enemies, kick origin: {kickOrigin}, aim direction: {_aimDirection}");
 
 		foreach (var enemy in enemies)
 		{
@@ -711,7 +700,6 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 			}
 
 			var distance = kickOrigin.DistanceTo(enemyNode.GlobalPosition);
-			GD.Print($"  Enemy at {enemyNode.GlobalPosition}, distance: {distance:F1}px (range: {KickRange}px)");
 
 			if (distance > KickRange)
 			{
@@ -723,11 +711,9 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 			var angleDifference = Mathf.Abs(_aimDirection.AngleTo(directionToEnemy));
 			var maxAngle = Mathf.DegToRad(KickConeAngle / 2f); // Half angle on each side
 
-			GD.Print($"  Angle difference: {Mathf.RadToDeg(angleDifference):F1}° (max: {KickConeAngle / 2f}°)");
 
 			if (angleDifference > maxAngle)
 			{
-				GD.Print($"  Enemy outside kick cone, skipping");
 				continue;
 			}
 
@@ -737,14 +723,12 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 				var hitPos = enemyNode.GlobalPosition;
 				var hitNormal = (enemyNode.GlobalPosition - kickOrigin).Normalized();
 				damageable.ApplyDamage(KickDamage, kickOrigin, hitPos, hitNormal);
-				GD.Print($"Kick hit enemy for {KickDamage} damage");
 			}
 
 			// 50% chance to inflict knockdown
 			if (GD.Randf() < KickKnockdownChance && enemy is AI.ZombieController zombie)
 			{
 				zombie.ApplyKnockdown();
-				GD.Print("Kick inflicted knockdown!");
 			}
 		}
 	}
@@ -975,7 +959,6 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 	public void ApplyDamage(float amount, Vector2 fromPos, Vector2 hitPos, Vector2 hitNormal)
 	{
 		CurrentHealth -= amount;
-		GD.Print($"Player took {amount} damage! Health: {CurrentHealth}/{MaxHealth}");
 
 		// Apply knockback away from damage source
 		var knockbackDir = (GlobalPosition - fromPos).Normalized();
@@ -1032,11 +1015,8 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		}
 	}
 
-	private void Die()
-	{
-		GD.Print("Player died!");
+	private void Die() =>
 		// For now, just restart by resetting health
 		// Later this could trigger a death screen or respawn system
 		CurrentHealth = MaxHealth;
-	}
 }

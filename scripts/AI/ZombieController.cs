@@ -209,7 +209,7 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 
 		if (_bodyNode is null)
 		{
-			GD.PrintErr("ZombieController._Ready: Body node not found - body rotation will not update");
+			// GD.PrintErr("ZombieController._Ready: Body node not found - body rotation will not update");
 		}
 
 		if (_sprite is not null)
@@ -222,7 +222,7 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 				}
 				else
 				{
-					GD.PrintErr("ZombieController._Ready: attack animation not found in SpriteFrames");
+					// GD.PrintErr("ZombieController._Ready: attack animation not found in SpriteFrames");
 				}
 
 				if (_sprite.SpriteFrames.HasAnimation("lean"))
@@ -231,7 +231,7 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 				}
 				else
 				{
-					GD.PrintErr("ZombieController._Ready: lean animation not found in SpriteFrames");
+					// GD.PrintErr("ZombieController._Ready: lean animation not found in SpriteFrames");
 				}
 
 				if (_sprite.SpriteFrames.HasAnimation("death"))
@@ -240,12 +240,12 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 				}
 				else
 				{
-					GD.PrintErr("ZombieController._Ready: corpse animation not found in SpriteFrames");
+					// GD.PrintErr("ZombieController._Ready: corpse animation not found in SpriteFrames");
 				}
 			}
 			else
 			{
-				GD.PrintErr("ZombieController._Ready: SpriteFrames missing on AnimatedSprite2D");
+				// GD.PrintErr("ZombieController._Ready: SpriteFrames missing on AnimatedSprite2D");
 			}
 
 			_sprite.AnimationFinished += OnAnimationFinished;
@@ -253,7 +253,7 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 		}
 		else
 		{
-			GD.PrintErr("ZombieController._Ready: Body/AnimatedSprite2D not found - animations will not play");
+			// GD.PrintErr("ZombieController._Ready: Body/AnimatedSprite2D not found - animations will not play");
 		}
 
 		// Legs node: rotate & play/pause leg walk animations separately from body
@@ -262,17 +262,17 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 		_legsSprite?.Play();
 		if (_legsNode is null)
 		{
-			GD.PrintErr("ZombieController._Ready: Legs node not found - leg rotation will not update");
+			// GD.PrintErr("ZombieController._Ready: Legs node not found - leg rotation will not update");
 		}
 
 		// Warn if death effect scenes are not assigned
 		if (CorpseScene is null)
 		{
-			GD.PrintErr("ZombieController._Ready: CorpseScene not assigned - no corpse will spawn on death");
+			// GD.PrintErr("ZombieController._Ready: CorpseScene not assigned - no corpse will spawn on death");
 		}
 		if (BloodSpatterScene is null)
 		{
-			GD.PrintErr("ZombieController._Ready: BloodSpatterScene not assigned - no blood spatter on death");
+			// GD.PrintErr("ZombieController._Ready: BloodSpatterScene not assigned - no blood spatter on death");
 		}
 	}
 
@@ -514,7 +514,7 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 			_isAttackAnimating = true;
 			_sprite.Stop();
 			_sprite.Play("attack");
-			GD.Print("ZombieController: Playing attack animation");
+			// GD.Print("ZombieController: Playing attack animation");
 		}
 	}
 
@@ -539,7 +539,7 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 			{
 				damageable.ApplyDamage(AttackDamage, GlobalPosition, hitPos, hitNormal);
 				_attackCooldownTimer = AttackCooldown;
-				GD.Print($"ZombieController: Hit {target.Name} for {AttackDamage} damage");
+				// GD.Print($"ZombieController: Hit {target.Name} for {AttackDamage} damage");
 
 				// Apply knockback if target supports it
 				if (target is IKnockbackable knockbackable)
@@ -551,7 +551,7 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 		else
 		{
 			// Attack hit nothing or was blocked by a wall
-			GD.Print("ZombieController: Attack missed or was blocked");
+			// GD.Print("ZombieController: Attack missed or was blocked");
 			_attackCooldownTimer = AttackCooldown;
 		}
 	}
@@ -880,11 +880,7 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 	/// </summary>
 	/// <param name="direction">Direction of the knockback (normalized).</param>
 	/// <param name="strength">Strength of the knockback force.</param>
-	public void ApplyKnockback(Vector2 direction, float strength)
-	{
-		_knockbackVelocity += direction * strength;
-		GD.Print($"ZombieController: Applied knockback - dir: {direction}, strength: {strength}");
-	}
+	public void ApplyKnockback(Vector2 direction, float strength) => _knockbackVelocity += direction * strength;// GD.Print($"ZombieController: Applied knockback - dir: {direction}, strength: {strength}");
 
 	/// <summary>
 	/// Applies knockdown state to the zombie.
@@ -948,7 +944,7 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 		// Resume lean animation to finish naturally
 		_sprite?.Play("lean");
 
-		GD.Print("Zombie knockdown ended, resuming");
+		// GD.Print("Zombie knockdown ended, resuming");
 	}
 
 	private void ApplyKnockbackDamp(float delta)

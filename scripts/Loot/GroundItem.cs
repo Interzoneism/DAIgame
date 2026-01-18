@@ -2,7 +2,7 @@ namespace DAIgame.Loot;
 
 using System.Collections.Generic;
 using DAIgame.Core;
-using DAIgame.Player;
+using DAIgame.Core.Items;
 using DAIgame.UI;
 using Godot;
 
@@ -16,7 +16,7 @@ public partial class GroundItem : Node2D, ILootable, IInteractable
     private const float HighlightMaxAlpha = 0.8f;
     private static readonly StringName HighlightColorParam = new("highlight_color");
 
-    private InventoryItem? _item;
+    private Item? _item;
     private bool _isHighlighted;
     private bool _isInteractionHighlighted;
     private ShaderMaterial? _highlightMaterial;
@@ -140,20 +140,17 @@ public partial class GroundItem : Node2D, ILootable, IInteractable
     /// <summary>
     /// Sets the item this ground item represents.
     /// </summary>
-    public void SetItem(InventoryItem item)
+    public void SetItem(Item item)
     {
         _item = item;
         UpdateVisual();
     }
 
-    public IReadOnlyList<InventoryItem?> GetItems() => [_item];
+    public IReadOnlyList<Item?> GetItems() => [_item];
 
-    public InventoryItem? GetItemAt(int index)
-    {
-        return index == 0 ? _item : null;
-    }
+    public Item? GetItemAt(int index) => index == 0 ? _item : null;
 
-    public bool SetItemAt(int index, InventoryItem? item)
+    public bool SetItemAt(int index, Item? item)
     {
         if (index != 0)
         {
@@ -165,7 +162,7 @@ public partial class GroundItem : Node2D, ILootable, IInteractable
         return true;
     }
 
-    public InventoryItem? TakeItemAt(int index)
+    public Item? TakeItemAt(int index)
     {
         if (index != 0)
         {
@@ -180,10 +177,7 @@ public partial class GroundItem : Node2D, ILootable, IInteractable
 
     public new Vector2 GetGlobalPosition() => GlobalPosition;
 
-    public void OnBecameEmpty()
-    {
-        QueueFree();
-    }
+    public void OnBecameEmpty() => QueueFree();
 
     // IInteractable implementation
     public void OnInteract()
@@ -199,11 +193,13 @@ public partial class GroundItem : Node2D, ILootable, IInteractable
     /// <summary>
     /// Creates a ground item at the specified position with the given item.
     /// </summary>
-    public static GroundItem Create(InventoryItem item, Vector2 position)
+    public static GroundItem Create(Item item, Vector2 position)
     {
-        var groundItem = new GroundItem();
-        groundItem.GlobalPosition = position;
-        groundItem._item = item;
+        var groundItem = new GroundItem
+        {
+            GlobalPosition = position,
+            _item = item
+        };
         return groundItem;
     }
 }

@@ -33,27 +33,18 @@ public partial class InteractionManager : Node
 
         if (_player is null)
         {
-            GD.PrintErr("InteractionManager: Must be a child of a Node2D (player).");
-        }
-        else
-        {
-            GD.Print("InteractionManager: Initialized successfully");
+            // ...existing code...
         }
     }
 
-    public override void _Process(double delta)
-    {
-        UpdateHoveredInteractable();
-    }
+    public override void _Process(double delta) => UpdateHoveredInteractable();
 
     public override void _UnhandledInput(InputEvent @event)
     {
         if (@event.IsActionPressed("Interact"))
         {
-            GD.Print($"InteractionManager: Interact pressed, HoveredInteractable is {(HoveredInteractable is not null ? "not null" : "null")}");
             if (HoveredInteractable is not null)
             {
-                GD.Print($"InteractionManager: Calling OnInteract on {HoveredInteractable}");
                 HoveredInteractable.OnInteract();
                 GetViewport().SetInputAsHandled();
             }
@@ -113,23 +104,18 @@ public partial class InteractionManager : Node
         ref float closestDistSq)
     {
         var nodes = GetTree().GetNodesInGroup(groupName);
-        if (nodes.Count > 0)
-        {
-            GD.Print($"InteractionManager: Checking {nodes.Count} nodes in group '{groupName}'");
-        }
+        // ...existing code...
 
         foreach (var node in nodes)
         {
             if (node is not IInteractable interactable)
             {
-                GD.Print($"InteractionManager: Node '{node.Name}' in group '{groupName}' is not IInteractable");
                 continue;
             }
 
             // Check if player is in range of the interactable
             var interactablePos = interactable.GetInteractionPosition();
             var distToPlayerSq = playerPos.DistanceSquaredTo(interactablePos);
-            GD.Print($"InteractionManager: {node.Name} distance to player: {Mathf.Sqrt(distToPlayerSq):F1}, radius: {Mathf.Sqrt(radiusSq):F1}");
 
             if (distToPlayerSq > radiusSq)
             {
@@ -138,7 +124,6 @@ public partial class InteractionManager : Node
 
             // Check if mouse is hovering over the interaction area
             var isMouseOver = IsMouseOverInteractable(interactable, mousePos);
-            GD.Print($"InteractionManager: {node.Name} isMouseOver: {isMouseOver}");
 
             if (!isMouseOver)
             {
@@ -151,7 +136,6 @@ public partial class InteractionManager : Node
             {
                 closestDistSq = distToMouseSq;
                 newHovered = interactable;
-                GD.Print($"InteractionManager: New hovered interactable: {node.Name}");
             }
         }
     }
@@ -181,7 +165,6 @@ public partial class InteractionManager : Node
                 // Check if the point is inside the shape
                 if (IsPointInShape(shape, localMousePos))
                 {
-                    GD.Print($"InteractionManager: Mouse is inside {shapeNode.Name}");
                     return true;
                 }
             }
@@ -233,7 +216,7 @@ public partial class InteractionManager : Node
         var ap = point - a;
         var projection = ap.Dot(ab) / ab.LengthSquared();
         projection = Mathf.Clamp(projection, 0f, 1f);
-        var closestPoint = a + ab * projection;
+        var closestPoint = a + (ab * projection);
 
         // Consider a small threshold for hovering over a line
         const float LineThreshold = 5f;

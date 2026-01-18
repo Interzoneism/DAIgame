@@ -1,9 +1,8 @@
 namespace DAIgame.Loot;
 
 using System.Collections.Generic;
-using DAIgame.Combat;
 using DAIgame.Core;
-using DAIgame.Player;
+using DAIgame.Core.Items;
 using DAIgame.UI;
 using Godot;
 
@@ -29,7 +28,7 @@ public partial class LootableCorpse : CharacterBody2D, ILootable, IInteractable
 
     private AnimatedSprite2D? _sprite;
     private bool _hasSettled;
-    private InventoryItem?[] _items = new InventoryItem?[LootSlots];
+    private Item?[] _items = new Item?[LootSlots];
     private bool _isHighlighted;
     private bool _isInteractionHighlighted;
     private ShaderMaterial? _highlightMaterial;
@@ -171,7 +170,6 @@ public partial class LootableCorpse : CharacterBody2D, ILootable, IInteractable
         var shader = GD.Load<Shader>("res://shaders/highlight_outline.gdshader");
         if (shader is null)
         {
-            GD.PrintErr("LootableCorpse: Failed to load highlight shader");
             return;
         }
 
@@ -200,97 +198,19 @@ public partial class LootableCorpse : CharacterBody2D, ILootable, IInteractable
 
         _lootGenerated = true;
 
-        // Generate a random weapon
-        var weaponItem = GenerateRandomWeapon();
+        // Generate a random weapon using ItemDatabase
+        var weaponItem = ItemDatabase.CreateRandomWeapon();
         if (weaponItem is not null)
         {
             _items[0] = weaponItem;
-            GD.Print($"LootableCorpse: Generated weapon '{weaponItem.DisplayName}'");
         }
 
-        // Generate random ammo
-        var ammoItem = GenerateRandomAmmo();
+        // Generate random ammo using ItemDatabase
+        var ammoItem = ItemDatabase.CreateRandomAmmo();
         if (ammoItem is not null)
         {
             _items[1] = ammoItem;
-            GD.Print($"LootableCorpse: Generated ammo '{ammoItem.DisplayName}' x{ammoItem.StackCount}");
         }
-    }
-
-    private static InventoryItem? GenerateRandomWeapon()
-    {
-        // Available weapons
-        var weaponPaths = new[]
-        {
-            "res://data/weapons/pistol.tres",
-            "res://data/weapons/shotgun.tres",
-            "res://data/weapons/uzi.tres",
-            "res://data/weapons/bat.tres"
-        };
-
-        var iconPaths = new Dictionary<string, string>
-        {
-            { "pistol", "res://assets/sprites/icon_uzi.png" },
-            { "shotgun", "res://assets/sprites/icon_uzi.png" },
-            { "uzi", "res://assets/sprites/icon_uzi.png" },
-            { "bat", "res://assets/sprites/icon_uzi.png" }
-        };
-
-        var idx = (int)(GD.Randi() % weaponPaths.Length);
-        var weapon = ResourceLoader.Load<WeaponData>(weaponPaths[idx]);
-        if (weapon is null)
-        {
-            GD.PrintErr($"LootableCorpse: Failed to load weapon at {weaponPaths[idx]}");
-            return null;
-        }
-
-        // Try to load a specific icon, fallback to uzi icon
-        var iconPath = iconPaths.TryGetValue(weapon.WeaponId, out var path) ? path : "res://assets/sprites/icon_uzi.png";
-        var icon = ResourceLoader.Load<Texture2D>(iconPath);
-
-        return new InventoryItem
-        {
-            ItemId = weapon.WeaponId,
-            DisplayName = weapon.DisplayName,
-            ItemType = InventoryItemType.Weapon,
-            Icon = icon,
-            StackCount = 1,
-            MaxStack = 1,
-            WeaponData = weapon
-        };
-    }
-
-    private static InventoryItem? GenerateRandomAmmo()
-    {
-        var ammoTypes = new[]
-        {
-            (AmmoType.Small, "Ammo (Small)", "res://assets/sprites/ammo/ammo_small.png", 10, 30),
-            (AmmoType.Rifle, "Ammo (Rifle)", "res://assets/sprites/ammo/ammo_rifle.png", 5, 20),
-            (AmmoType.Shotgun, "Ammo (Shotgun)", "res://assets/sprites/ammo/ammo_shotgun.png", 4, 12)
-        };
-
-        var idx = (int)(GD.Randi() % ammoTypes.Length);
-        var (ammoType, displayName, iconPath, minAmount, maxAmount) = ammoTypes[idx];
-
-        var icon = ResourceLoader.Load<Texture2D>(iconPath);
-        if (icon is null)
-        {
-            GD.PrintErr($"LootableCorpse: Failed to load ammo icon at {iconPath}");
-            return null;
-        }
-
-        var amount = (int)(GD.Randi() % (maxAmount - minAmount + 1)) + minAmount;
-
-        return new InventoryItem
-        {
-            ItemId = $"ammo_{ammoType.ToString().ToLowerInvariant()}",
-            DisplayName = displayName,
-            ItemType = InventoryItemType.Ammo,
-            AmmoType = ammoType,
-            Icon = icon,
-            StackCount = amount,
-            MaxStack = 300
-        };
     }
 
     private void ConvertToStatic()
@@ -299,14 +219,11 @@ public partial class LootableCorpse : CharacterBody2D, ILootable, IInteractable
         SetPhysicsProcess(false);
     }
 
-    public IReadOnlyList<InventoryItem?> GetItems() => _items;
+    public IReadOnlyList<Item?> GetItems() => _items;
 
-    public InventoryItem? GetItemAt(int index)
-    {
-        return index >= 0 && index < _items.Length ? _items[index] : null;
-    }
+    public Item? GetItemAt(int index) => index >= 0 && index < _items.Length ? _items[index] : null;
 
-    public bool SetItemAt(int index, InventoryItem? item)
+    public bool SetItemAt(int index, Item? item)
     {
         if (index < 0 || index >= _items.Length)
         {
@@ -317,7 +234,7 @@ public partial class LootableCorpse : CharacterBody2D, ILootable, IInteractable
         return true;
     }
 
-    public InventoryItem? TakeItemAt(int index)
+    public Item? TakeItemAt(int index)
     {
         if (index < 0 || index >= _items.Length)
         {
@@ -337,11 +254,7 @@ public partial class LootableCorpse : CharacterBody2D, ILootable, IInteractable
     }
 
     // IInteractable implementation
-    public void OnInteract()
-    {
-        GD.Print($"LootableCorpse: Interacting with {DisplayName}");
-        InventoryScreen.Instance?.OpenWithLootable(this);
-    }
+    public void OnInteract() => InventoryScreen.Instance?.OpenWithLootable(this);
 
     public Vector2 GetInteractionPosition() => GlobalPosition;
 

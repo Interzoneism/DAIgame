@@ -69,7 +69,7 @@ public partial class Projectile : Area2D
         var startPos = GlobalPosition;
         var endPos = startPos + (_direction * moveDistance);
 
-        GD.Print($"Bullet moving: from {startPos} to {endPos}, distance={moveDistance}, direction={_direction}");
+        // ...existing code...
 
         var query = PhysicsRayQueryParameters2D.Create(startPos, endPos);
         query.CollideWithAreas = false;
@@ -86,7 +86,7 @@ public partial class Projectile : Area2D
             var hitNormal = (Vector2)result["normal"];
             var collider = result["collider"].As<GodotObject>();
 
-            GD.Print($"Bullet raycast hit: {(collider as Node)?.Name ?? "Unknown"} at {hitPosition}, distance={(hitPosition - startPos).Length()}");
+            // ...existing code...
 
             GlobalPosition = hitPosition;
             HandleCollision(collider as Node2D, hitPosition, hitNormal);
@@ -94,7 +94,7 @@ public partial class Projectile : Area2D
         else
         {
             // No collision, move normally
-            GD.Print($"Bullet no collision, moving to {endPos}");
+            // ...existing code...
             GlobalPosition = endPos;
         }
 
@@ -112,7 +112,7 @@ public partial class Projectile : Area2D
     {
         _direction = direction.Normalized();
         Rotation = _direction.Angle();
-        GD.Print($"Bullet fired: Position={GlobalPosition}, Direction={_direction}, Speed={Speed}");
+        // ...existing code...
     }
 
     private void OnBodyEntered(Node2D body)
@@ -123,7 +123,7 @@ public partial class Projectile : Area2D
         }
 
         // Fallback for Area2D collision (should rarely trigger now that we use raycast)
-        GD.Print($"Bullet Area2D collision fallback: {body.Name} at {GlobalPosition}");
+        // ...existing code...
         var hitPosition = GlobalPosition;
         var hitNormal = -_direction;
         HandleCollision(body, hitPosition, hitNormal);
@@ -137,7 +137,7 @@ public partial class Projectile : Area2D
         }
 
         _hasHit = true;
-        GD.Print($"Bullet hit: {body.Name} at {hitPosition}");
+        // ...existing code...
 
         // Check if the body or its parent is damageable
         var damageable = FindDamageableTarget(body);
@@ -188,7 +188,6 @@ public partial class Projectile : Area2D
         particles.GlobalPosition = position;
         // Rotate so the particles' -Y axis points opposite the bullet's direction
         var missRotation = _direction.Angle() + (Mathf.Pi / 2f) + Mathf.Pi;
-        GD.Print($"MissParticles: direction={_direction}, rotation={missRotation}");
         particles.Rotation = missRotation;
         particles.Emitting = true;
         particles.Finished += particles.QueueFree;
