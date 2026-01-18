@@ -1,7 +1,7 @@
 namespace DAIgame.Loot;
 
 using System.Collections.Generic;
-using DAIgame.Player;
+using DAIgame.Core.Items;
 using Godot;
 
 /// <summary>
@@ -22,23 +22,23 @@ public interface ILootable
     /// <summary>
     /// Gets all items in this lootable.
     /// </summary>
-    IReadOnlyList<InventoryItem?> GetItems();
+    IReadOnlyList<Item?> GetItems();
 
     /// <summary>
     /// Gets the item at a specific slot index.
     /// </summary>
-    InventoryItem? GetItemAt(int index);
+    Item? GetItemAt(int index);
 
     /// <summary>
     /// Sets the item at a specific slot index (for placing items in containers).
     /// Returns true if successful.
     /// </summary>
-    bool SetItemAt(int index, InventoryItem? item);
+    bool SetItemAt(int index, Item? item);
 
     /// <summary>
     /// Removes the item at a specific slot index and returns it.
     /// </summary>
-    InventoryItem? TakeItemAt(int index);
+    Item? TakeItemAt(int index);
 
     /// <summary>
     /// Gets the global position of this lootable for distance checks.

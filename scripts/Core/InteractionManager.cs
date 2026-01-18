@@ -31,13 +31,13 @@ public partial class InteractionManager : Node
         Instance = this;
         _player = GetParent<Node2D>();
 
-        // ...existing code...
+        if (_player is null)
+        {
+            GD.PrintErr("InteractionManager: Parent is not a Node2D.");
+        }
     }
 
-    public override void _Process(double delta)
-    {
-        UpdateHoveredInteractable(); // Expression body not used for clarity; ignore style warning.
-    }
+    public override void _Process(double delta) => UpdateHoveredInteractable();
 
     public override void _UnhandledInput(InputEvent @event)
     {
@@ -104,7 +104,6 @@ public partial class InteractionManager : Node
         ref float closestDistSq)
     {
         var nodes = GetTree().GetNodesInGroup(groupName);
-
 
         foreach (var node in nodes)
         {

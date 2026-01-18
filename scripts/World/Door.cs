@@ -71,7 +71,7 @@ public partial class Door : StaticBody2D, IInteractable
 		_interactionArea = GetNodeOrNull<Area2D>("InteractionArea");
 		if (_interactionArea is null)
 		{
-			GD.PrintErr("Door: InteractionArea not found! Player won't be able to interact.");
+			// ...existing code...
 		}
 
 		SetupHighlightShader();
@@ -106,11 +106,10 @@ public partial class Door : StaticBody2D, IInteractable
 	{
 		// Find the sprite node to apply the shader to
 		_spriteNode = GetNodeOrNull<Sprite2D>("Sprite2D") as CanvasItem
-			?? GetNodeOrNull<AnimatedSprite2D>("AnimatedSprite2D") as CanvasItem;
+			?? GetNodeOrNull<AnimatedSprite2D>("AnimatedSprite2D");
 
 		if (_spriteNode is null)
 		{
-			GD.PrintErr($"Door '{Name}': No Sprite2D or AnimatedSprite2D found for highlighting");
 			return;
 		}
 
@@ -119,7 +118,6 @@ public partial class Door : StaticBody2D, IInteractable
 		var shader = GD.Load<Shader>("res://shaders/highlight_outline.gdshader");
 		if (shader is null)
 		{
-			GD.PrintErr("Door: Failed to load highlight shader");
 			return;
 		}
 
@@ -138,13 +136,10 @@ public partial class Door : StaticBody2D, IInteractable
 		_highlightTime = 0f;
 	}
 
-	// IInteractable implementation
-	public void OnInteract()
-	{
-		ToggleDoor();
-	}
+    // IInteractable implementation
+    public void OnInteract() => ToggleDoor();
 
-	public Vector2 GetInteractionPosition() => GlobalPosition;
+    public Vector2 GetInteractionPosition() => GlobalPosition;
 
 	public Area2D? GetInteractionArea() => _interactionArea;
 
@@ -167,7 +162,7 @@ public partial class Door : StaticBody2D, IInteractable
 			? _startRotation + Mathf.DegToRad(90)
 			: _startRotation;
 
-		GD.Print($"Door: {(IsOpen ? "Opening" : "Closing")}");
+		// ...existing code...
 	}
 
 	/// <summary>
@@ -206,7 +201,7 @@ public partial class Door : StaticBody2D, IInteractable
 		{
 			_isAnimating = false;
 			Rotation = _targetRotation;
-			GD.Print($"Door: {(IsOpen ? "Opened" : "Closed")}");
+			// ...existing code...
 		}
 	}
 

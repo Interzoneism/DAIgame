@@ -196,11 +196,11 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 	private string _currentAttackAnim = "attack_pistol";
 	private float _baseAttackAnimSpeed = 12f;
 	private int _currentAttackFrameCount = 3;
-	private readonly Dictionary<string, float> _bodyWalkBaseSpeeds = new();
+	private readonly Dictionary<string, float> _bodyWalkBaseSpeeds = [];
 	private float _walkSpeedReference;
 	private float _currentMoveSpeed;
-	private readonly Dictionary<string, HeldAnimationAnchor> _heldAnchorLookup = new();
-	private readonly HashSet<string> _missingHeldAnchors = new();
+	private readonly Dictionary<string, HeldAnimationAnchor> _heldAnchorLookup = [];
+	private readonly HashSet<string> _missingHeldAnchors = [];
 	private string _lastHeldAnimation = string.Empty;
 	private Vector2 _heldBaseOffset = Vector2.Zero;
 	private Vector2 _heldWiggleOffset = Vector2.Zero;
@@ -299,59 +299,52 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		// Set held weapon sprite
 		if (_heldSprite is not null)
 		{
-			_heldSprite.Texture = weapon.HeldSprite;
-			_heldSprite.Visible = weapon.HeldSprite is not null;
-			if (weapon.HeldSprite is null)
-			{
-				GD.PrintErr($"PlayerController: Weapon '{weapon.DisplayName}' has no HeldSprite assigned.");
-			}
-		}
+            _heldSprite.Texture = weapon.HeldSprite;
+            _heldSprite.Visible = weapon.HeldSprite is not null;
+            if (weapon.HeldSprite is null)
+            {
+                GD.PrintErr($"PlayerController: Weapon '{weapon.DisplayName}' has no HeldSprite assigned.");
+            }
+        }
 
-		if (_bodySprite?.SpriteFrames is SpriteFrames frames)
-		{
-			if (!frames.HasAnimation(_currentWalkAnim))
-			{
-				var fallbackWalk = frames.HasAnimation("mod_walk") ? "mod_walk" : "walk";
-				if (frames.HasAnimation(fallbackWalk))
-				{
-					GD.PrintErr($"PlayerController: Walk animation '{_currentWalkAnim}' not found for {weapon.DisplayName}; using '{fallbackWalk}'.");
-					_currentWalkAnim = fallbackWalk;
-				}
-				else
-				{
-					GD.PrintErr($"PlayerController: Walk animation '{_currentWalkAnim}' not found for {weapon.DisplayName} and no fallback is available.");
-				}
-			}
+        if (_bodySprite?.SpriteFrames is SpriteFrames frames)
+        {
+            if (!frames.HasAnimation(_currentWalkAnim))
+            {
+                var fallbackWalk = frames.HasAnimation("mod_walk") ? "mod_walk" : "walk";
+                if (frames.HasAnimation(fallbackWalk))
+                {
+                    GD.PrintErr($"PlayerController: Walk animation '{_currentWalkAnim}' not found for {weapon.DisplayName}; using '{fallbackWalk}'.");
+                    _currentWalkAnim = fallbackWalk;
+                }
+                else
+                {
+                    GD.PrintErr($"PlayerController: Walk animation '{_currentWalkAnim}' not found for {weapon.DisplayName} and no fallback is available.");
+                }
+            }
 
-			// Cache attack animation frame count for speed calculations
-			_currentAttackFrameCount = 0;
-			_baseAttackAnimSpeed = 0f;
-			if (!string.IsNullOrEmpty(_currentAttackAnim) && frames.HasAnimation(_currentAttackAnim))
-			{
-				_currentAttackFrameCount = frames.GetFrameCount(_currentAttackAnim);
-				_baseAttackAnimSpeed = (float)frames.GetAnimationSpeed(_currentAttackAnim);
-				frames.SetAnimationLoop(_currentAttackAnim, weapon.AttackAnimationLoops);
-				GD.Print($"PlayerController: Attack anim '{_currentAttackAnim}' has {_currentAttackFrameCount} frames at base speed {_baseAttackAnimSpeed}");
-			}
-			else if (!string.IsNullOrEmpty(_currentAttackAnim))
-			{
-				// Attack animation not found - weapon uses held sprite visual feedback only
-				GD.Print($"PlayerController: No body attack animation for {weapon.DisplayName} (using held sprite visuals).");
-				_currentAttackAnim = string.Empty;
-			}
+            // Cache attack animation frame count for speed calculations
+            _currentAttackFrameCount = 0;
+            _baseAttackAnimSpeed = 0f;
+            if (!string.IsNullOrEmpty(_currentAttackAnim) && frames.HasAnimation(_currentAttackAnim))
+            {
+                _currentAttackFrameCount = frames.GetFrameCount(_currentAttackAnim);
+                _baseAttackAnimSpeed = (float)frames.GetAnimationSpeed(_currentAttackAnim);
+                frames.SetAnimationLoop(_currentAttackAnim, weapon.AttackAnimationLoops);
+                GD.Print($"PlayerController: Attack anim '{_currentAttackAnim}' has {_currentAttackFrameCount} frames at base speed {_baseAttackAnimSpeed}");
+            }
+            else if (!string.IsNullOrEmpty(_currentAttackAnim))
+            {
+                // Attack animation not found - weapon uses held sprite visual feedback only
+                GD.Print($"PlayerController: No body attack animation for {weapon.DisplayName} (using held sprite visuals).");
+                _currentAttackAnim = string.Empty;
+            }
 
-			// Set walk animation looping
-			if (frames.HasAnimation(_currentWalkAnim))
-			{
-				frames.SetAnimationLoop(_currentWalkAnim, weapon.WalkAnimationLoops);
-			}
-		}
-
-		GD.Print($"PlayerController: Weapon changed to {weapon.DisplayName}, walk={_currentWalkAnim}, attack={_currentAttackAnim}");
-
-		// Update current animation if not attacking or kicking
-		if (!_attackPlaying && !_kickPlaying && _bodySprite is not null)
-		{
+            // Set walk animation looping
+            if (frames.HasAnimation(_currentWalkAnim))
+            {
+                frames.SetAnimationLoop(_currentWalkAnim, weapon.WalkAnimationLoops);
+            }
 			_bodySprite.Play(_currentWalkAnim);
 		}
 
@@ -430,7 +423,6 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 	{
 		if (CurrentStamina < amount)
 		{
-			GD.Print($"Not enough stamina! Need {amount}, have {CurrentStamina:F1}");
 			return false;
 		}
 
@@ -747,43 +739,37 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 
 		if (HealingItems <= 0)
 		{
-			GD.Print("No healing items remaining!");
 			return;
 		}
 
 		var maxHealth = _statsManager?.MaxHealth ?? 100f;
 		if (CurrentHealth >= maxHealth)
 		{
-			GD.Print("Already at full health!");
 			return;
 		}
 
 		maxHealth = _statsManager?.MaxHealth ?? 100f;
 		HealingItems--;
-		var healedAmount = Mathf.Min(HealAmount, maxHealth - CurrentHealth);
-		CurrentHealth = Mathf.Min(CurrentHealth + HealAmount, maxHealth);
-		GD.Print($"Healed {healedAmount}! Health: {CurrentHealth}/{maxHealth} (Items left: {HealingItems})");
+	var healedAmount = Mathf.Min(HealAmount, maxHealth - CurrentHealth);
+	CurrentHealth = Mathf.Min(CurrentHealth + HealAmount, maxHealth);
+	GD.Print($"Healed {healedAmount}! Health: {CurrentHealth}/{maxHealth} (Items left: {HealingItems})");
+}
+
+/// <summary>
+/// Adds healing items to the player's inventory.
+/// </summary>
+public void AddHealingItems(int count) => HealingItems += count;
+
+private void HandleKick()
+{
+	// Block kicking during attack or already kicking
+	if (_attackPlaying || _kickPlaying)
+	{
+		return;
 	}
 
-	/// <summary>
-	/// Adds healing items to the player's inventory.
-	/// </summary>
-	public void AddHealingItems(int count)
+	if (!Input.IsActionJustPressed("Kick"))
 	{
-		HealingItems += count;
-		GD.Print($"Picked up {count} healing item(s). Total: {HealingItems}");
-	}
-
-	private void HandleKick()
-	{
-		// Block kicking during attack or already kicking
-		if (_attackPlaying || _kickPlaying)
-		{
-			return;
-		}
-
-		if (!Input.IsActionJustPressed("Kick"))
-		{
 			return;
 		}
 
@@ -841,7 +827,6 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		var enemies = GetTree().GetNodesInGroup("enemies");
 		var kickOrigin = GlobalPosition;
 
-		GD.Print($"PerformKickDamage: checking {enemies.Count} enemies, kick origin: {kickOrigin}, aim direction: {_aimDirection}");
 
 		foreach (var enemy in enemies)
 		{
@@ -851,7 +836,6 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 			}
 
 			var distance = kickOrigin.DistanceTo(enemyNode.GlobalPosition);
-			GD.Print($"  Enemy at {enemyNode.GlobalPosition}, distance: {distance:F1}px (range: {KickRange}px)");
 
 			if (distance > KickRange)
 			{
@@ -863,11 +847,9 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 			var angleDifference = Mathf.Abs(_aimDirection.AngleTo(directionToEnemy));
 			var maxAngle = Mathf.DegToRad(KickConeAngle / 2f); // Half angle on each side
 
-			GD.Print($"  Angle difference: {Mathf.RadToDeg(angleDifference):F1}° (max: {KickConeAngle / 2f}°)");
 
 			if (angleDifference > maxAngle)
 			{
-				GD.Print($"  Enemy outside kick cone, skipping");
 				continue;
 			}
 
@@ -877,14 +859,12 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 				var hitPos = enemyNode.GlobalPosition;
 				var hitNormal = (enemyNode.GlobalPosition - kickOrigin).Normalized();
 				damageable.ApplyDamage(KickDamage, kickOrigin, hitPos, hitNormal);
-				GD.Print($"Kick hit enemy for {KickDamage} damage");
 			}
 
 			// 50% chance to inflict knockdown
 			if (GD.Randf() < KickKnockdownChance && enemy is AI.ZombieController zombie)
 			{
 				zombie.ApplyKnockdown();
-				GD.Print("Kick inflicted knockdown!");
 			}
 		}
 	}
@@ -1032,7 +1012,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		}
 
 		// Pause or play walk animation based on movement and looping preference
-		bool shouldLoopWalk = weapon?.WalkAnimationLoops ?? true;
+		var shouldLoopWalk = weapon?.WalkAnimationLoops ?? true;
 		if (!_isMoving && !_attackPlaying && IsWalkAnimation(_bodySprite.Animation) && !shouldLoopWalk)
 		{
 			_bodySprite.Stop();
@@ -1428,10 +1408,6 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 
 		// Apply knockback away from damage source
 		var knockbackDir = (GlobalPosition - fromPos).Normalized();
-		if (knockbackDir == Vector2.Zero)
-		{
-			knockbackDir = Vector2.Right;
-		}
 		_knockbackVelocity += knockbackDir * DamageKnockbackStrength;
 
 		// Trigger hit flash
@@ -1481,11 +1457,8 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		}
 	}
 
-	private void Die()
-	{
-		GD.Print("Player died!");
-		// For now, just restart by resetting health
-		// Later this could trigger a death screen or respawn system
-		CurrentHealth = _statsManager?.MaxHealth ?? 100f;
-	}
+    private void Die() =>
+        // For now, just restart by resetting health
+        // Later this could trigger a death screen or respawn system
+        CurrentHealth = _statsManager?.MaxHealth ?? 100f;
 }

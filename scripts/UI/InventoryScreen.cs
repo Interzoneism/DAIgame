@@ -2,6 +2,7 @@ namespace DAIgame.UI;
 
 using System.Collections.Generic;
 using DAIgame.Core;
+using DAIgame.Core.Items;
 using DAIgame.Loot;
 using DAIgame.Player;
 using Godot;
@@ -52,7 +53,7 @@ public partial class InventoryScreen : CanvasLayer
 
     public bool HasHeldItem => HeldItem is not null;
 
-    public InventoryItem? HeldItem { get; private set; }
+    public Item? HeldItem { get; private set; }
 
     public InventorySlotType HeldFromSlotType { get; private set; }
 
@@ -152,10 +153,12 @@ public partial class InventoryScreen : CanvasLayer
         _isLootFocus = true;
         _focusedLootable = lootable;
 
-        // Calculate position for the loot window (to the right of inventory)
-        var inventoryRight = 0f;
-        var inventoryTop = 0f;
 
+
+        // Calculate position for the loot window (to the right of inventory)
+        float inventoryRight;
+
+        float inventoryTop;
         if (_inventoryPanel is not null)
         {
             inventoryRight = _inventoryPanel.Position.X + _inventoryPanel.Size.X + 20f;
@@ -164,7 +167,7 @@ public partial class InventoryScreen : CanvasLayer
         else
         {
             var viewport = GetViewport();
-            inventoryRight = viewport.GetVisibleRect().Size.X / 2f + 300f;
+            inventoryRight = (viewport.GetVisibleRect().Size.X / 2f) + 300f;
             inventoryTop = 100f;
         }
 
@@ -802,19 +805,21 @@ public partial class InventoryScreen : CanvasLayer
         return true;
     }
 
-    private static InventorySlotType? GetPreferredEquipSlot(PlayerInventory inventory, InventoryItem item)
+    private static InventorySlotType? GetPreferredEquipSlot(PlayerInventory inventory, Item item)
     {
         return item.ItemType switch
         {
-            InventoryItemType.Weapon => InventorySlotType.RightHand,
-            InventoryItemType.Usable => inventory.GetItem(InventorySlotType.Usable1) is null
+            ItemType.Weapon => InventorySlotType.RightHand,
+            ItemType.Usable => inventory.GetItem(InventorySlotType.Usable1) is null
                 ? InventorySlotType.Usable1
                 : inventory.GetItem(InventorySlotType.Usable2) is null
                     ? InventorySlotType.Usable2
                     : InventorySlotType.Usable1,
-            InventoryItemType.Outfit => InventorySlotType.Outfit,
-            InventoryItemType.Headwear => InventorySlotType.Headwear,
-            InventoryItemType.Shoes => InventorySlotType.Shoes,
+            ItemType.Outfit => InventorySlotType.Outfit,
+            ItemType.Headwear => InventorySlotType.Headwear,
+            ItemType.Shoes => InventorySlotType.Shoes,
+            ItemType.Ammo => throw new System.NotImplementedException(),
+            ItemType.Misc => throw new System.NotImplementedException(),
             _ => null
         };
     }
@@ -993,11 +998,14 @@ public partial class InventoryScreen : CanvasLayer
             }
         }
 
-        // Calculate starting position for loot windows (to the right of inventory)
-        var inventoryRight = 0f;
-        var inventoryTop = 0f;
-        var inventoryBottom = 0f;
 
+
+        // Calculate starting position for loot windows (to the right of inventory)
+        float inventoryRight;
+
+        float inventoryTop;
+
+        float inventoryBottom;
         if (_inventoryPanel is not null)
         {
             // Get the panel's actual position and size
@@ -1009,7 +1017,7 @@ public partial class InventoryScreen : CanvasLayer
         {
             // Fallback to screen center
             var viewport = GetViewport();
-            inventoryRight = viewport.GetVisibleRect().Size.X / 2f + 300f;
+            inventoryRight = (viewport.GetVisibleRect().Size.X / 2f) + 300f;
             inventoryTop = 100f;
             inventoryBottom = viewport.GetVisibleRect().Size.Y - 100f;
         }
@@ -1243,16 +1251,7 @@ public partial class InventoryScreen : CanvasLayer
         item.StackCount -= splitAmount;
 
         // Create a new item for the held portion
-        var splitItem = new InventoryItem
-        {
-            ItemId = item.ItemId,
-            DisplayName = item.DisplayName,
-            MaxStack = item.MaxStack,
-            StackCount = splitAmount,
-            ItemType = item.ItemType,
-            AmmoType = item.AmmoType,
-            Icon = item.Icon
-        };
+        var splitItem = item.CreateStackCopy(splitAmount);
 
         HeldItem = splitItem;
         HeldFromSlotType = InventorySlotType.Backpack;

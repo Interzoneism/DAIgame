@@ -2,7 +2,7 @@ namespace DAIgame.Loot;
 
 using System.Collections.Generic;
 using DAIgame.Core;
-using DAIgame.Player;
+using DAIgame.Core.Items;
 using DAIgame.UI;
 using Godot;
 
@@ -35,7 +35,7 @@ public partial class LootableContainer : Node2D, ILootable, IInteractable
     [Export]
     public int Columns { get; set; } = 3;
 
-    private InventoryItem?[] _items = [];
+    private Item?[] _items = [];
     private bool _isHighlighted;
     private bool _isInteractionHighlighted;
     private ShaderMaterial? _highlightMaterial;
@@ -89,7 +89,7 @@ public partial class LootableContainer : Node2D, ILootable, IInteractable
 
     public override void _Ready()
     {
-        _items = new InventoryItem?[Mathf.Max(1, Slots)];
+        _items = new Item?[Mathf.Max(1, Slots)];
         AddToGroup("lootable_container");
 
         SetupHighlightShader();
@@ -121,7 +121,7 @@ public partial class LootableContainer : Node2D, ILootable, IInteractable
     {
         // Find the sprite node to apply the shader to
         _spriteNode = GetNodeOrNull<Sprite2D>("Sprite2D") as CanvasItem
-            ?? GetNodeOrNull<AnimatedSprite2D>("AnimatedSprite2D") as CanvasItem;
+            ?? GetNodeOrNull<AnimatedSprite2D>("AnimatedSprite2D");
 
         if (_spriteNode is null)
         {
@@ -154,14 +154,11 @@ public partial class LootableContainer : Node2D, ILootable, IInteractable
         _highlightTime = 0f;
     }
 
-    public IReadOnlyList<InventoryItem?> GetItems() => _items;
+    public IReadOnlyList<Item?> GetItems() => _items;
 
-    public InventoryItem? GetItemAt(int index)
-    {
-        return index >= 0 && index < _items.Length ? _items[index] : null;
-    }
+    public Item? GetItemAt(int index) => index >= 0 && index < _items.Length ? _items[index] : null;
 
-    public bool SetItemAt(int index, InventoryItem? item)
+    public bool SetItemAt(int index, Item? item)
     {
         if (index < 0 || index >= _items.Length)
         {
@@ -172,7 +169,7 @@ public partial class LootableContainer : Node2D, ILootable, IInteractable
         return true;
     }
 
-    public InventoryItem? TakeItemAt(int index)
+    public Item? TakeItemAt(int index)
     {
         if (index < 0 || index >= _items.Length)
         {
@@ -194,7 +191,7 @@ public partial class LootableContainer : Node2D, ILootable, IInteractable
     /// <summary>
     /// Adds an item to the first available slot.
     /// </summary>
-    public bool AddItem(InventoryItem item)
+    public bool AddItem(Item item)
     {
         for (var i = 0; i < _items.Length; i++)
         {

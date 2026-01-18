@@ -2,6 +2,7 @@ namespace DAIgame.Player;
 
 using System.Collections.Generic;
 using DAIgame.Combat;
+using DAIgame.Core.Items;
 using Godot;
 
 public partial class PlayerInventory : Node
@@ -9,16 +10,14 @@ public partial class PlayerInventory : Node
     [Signal]
     public delegate void InventoryChangedEventHandler();
 
-    private const int AmmoStackMax = 300;
-
     [Export]
     public int BackpackColumns { get; set; } = 6;
 
     [Export]
     public int BackpackRows { get; set; } = 5;
 
-    private InventoryItem?[] _backpack = [];
-    private readonly Dictionary<InventorySlotType, InventoryItem?> _equipment = new();
+    private Item?[] _backpack = [];
+    private readonly Dictionary<InventorySlotType, Item?> _equipment = [];
     private WeaponManager? _weaponManager;
 
     public override void _Ready()
@@ -31,7 +30,7 @@ public partial class PlayerInventory : Node
 
     public int BackpackSlotCount => _backpack.Length;
 
-    public InventoryItem? GetItem(InventorySlotType slotType, int slotIndex = -1)
+    public Item? GetItem(InventorySlotType slotType, int slotIndex = -1)
     {
         if (slotType == InventorySlotType.Backpack)
         {
@@ -41,7 +40,7 @@ public partial class PlayerInventory : Node
         return _equipment.TryGetValue(slotType, out var item) ? item : null;
     }
 
-    public bool SetItem(InventorySlotType slotType, int slotIndex, InventoryItem? item)
+    public bool SetItem(InventorySlotType slotType, int slotIndex, Item? item)
     {
         if (!CanPlaceItem(item, slotType))
         {
@@ -54,7 +53,7 @@ public partial class PlayerInventory : Node
         }
 
         EmitSignal(SignalName.InventoryChanged);
-        if (IsWeaponSlot(slotType))
+        if (slotType.IsWeaponSlot())
         {
             SyncWeapons();
         }
@@ -91,14 +90,14 @@ public partial class PlayerInventory : Node
         }
 
         EmitSignal(SignalName.InventoryChanged);
-        if (IsWeaponSlot(fromType) || IsWeaponSlot(toType))
+        if (fromType.IsWeaponSlot() || toType.IsWeaponSlot())
         {
             SyncWeapons();
         }
         return true;
     }
 
-    public bool AddItemToBackpack(InventoryItem item)
+    public bool AddItemToBackpack(Item item)
     {
         if (item.IsStackable && !CanFullyFitStack(item))
         {
@@ -165,34 +164,13 @@ public partial class PlayerInventory : Node
         return false;
     }
 
-    public bool CanPlaceItem(InventoryItem? item, InventorySlotType slotType)
-    {
-        if (item is null)
-        {
-            return true;
-        }
-
-        if (slotType == InventorySlotType.Backpack)
-        {
-            return true;
-        }
-
-        return slotType switch
-        {
-            InventorySlotType.LeftHand or InventorySlotType.RightHand => item.ItemType == InventoryItemType.Weapon,
-            InventorySlotType.Usable1 or InventorySlotType.Usable2 => item.ItemType == InventoryItemType.Usable,
-            InventorySlotType.Outfit => item.ItemType == InventoryItemType.Outfit,
-            InventorySlotType.Headwear => item.ItemType == InventoryItemType.Headwear,
-            InventorySlotType.Shoes => item.ItemType == InventoryItemType.Shoes,
-            _ => false
-        };
-    }
+    public bool CanPlaceItem(Item? item, InventorySlotType slotType) => slotType.CanAcceptItem(item);
 
     private void InitializeSlots()
     {
         var columns = Mathf.Max(1, BackpackColumns);
         var rows = Mathf.Max(1, BackpackRows);
-        _backpack = new InventoryItem?[columns * rows];
+        _backpack = new Item?[columns * rows];
 
         _equipment.Clear();
         _equipment[InventorySlotType.Outfit] = null;
@@ -206,85 +184,56 @@ public partial class PlayerInventory : Node
 
     private void AddStarterItems()
     {
-        var weapon = ResourceLoader.Load<WeaponData>("res://data/weapons/uzi.tres");
-        var icon = ResourceLoader.Load<Texture2D>("res://assets/sprites/items/icons/icon_weapon_ranged_uzi.png");
-
-        if (weapon is null)
+        // Use ItemDatabase to create starter weapon
+        var uziItem = ItemDatabase.CreateWeapon("uzi");
+        if (uziItem is null)
         {
-            GD.PrintErr("PlayerInventory: Failed to load uzi weapon data.");
+            GD.PrintErr("PlayerInventory: Failed to create uzi weapon.");
             return;
         }
-
-        if (icon is null)
-        {
-            GD.PrintErr("PlayerInventory: Failed to load uzi icon.");
-            return;
-        }
-
-        var uziItem = new InventoryItem
-        {
-            ItemId = "uzi",
-            DisplayName = "Uzi",
-            ItemType = InventoryItemType.Weapon,
-            Icon = icon,
-            StackCount = 1,
-            MaxStack = 1,
-            WeaponData = weapon
-        };
 
         if (!AddItemToBackpack(uziItem))
         {
             GD.PrintErr("PlayerInventory: Backpack full, could not add starter uzi.");
         }
 
-        AddStarterAmmo(Combat.AmmoType.Small, "Ammo (Small)", "res://assets/sprites/items/icons/icon_ammo_small.png", 120);
-        AddStarterAmmo(Combat.AmmoType.Rifle, "Ammo (Rifle)", "res://assets/sprites/items/icons/icon_ammo_rifle.png", 60);
-        AddStarterAmmo(Combat.AmmoType.Shotgun, "Ammo (Shotgun)", "res://assets/sprites/items/icons/icon_ammo_shotgun.png", 30);
+        AddStarterAmmo(AmmoType.Small, 120);
+        AddStarterAmmo(AmmoType.Rifle, 60);
+        AddStarterAmmo(AmmoType.Shotgun, 30);
     }
 
-    private void AddStarterAmmo(Combat.AmmoType ammoType, string displayName, string iconPath, int amount)
+    private void AddStarterAmmo(AmmoType ammoType, int amount)
     {
-        var icon = ResourceLoader.Load<Texture2D>(iconPath);
-        if (icon is null)
+        var ammoItem = ItemDatabase.CreateAmmo(ammoType, amount);
+        if (ammoItem is null)
         {
-            GD.PrintErr($"PlayerInventory: Failed to load ammo icon {iconPath}.");
+            GD.PrintErr($"PlayerInventory: Failed to create ammo {ammoType}.");
             return;
         }
 
-        var ammoItem = new InventoryItem
-        {
-            ItemId = $"ammo_{ammoType.ToString().ToLowerInvariant()}",
-            DisplayName = displayName,
-            ItemType = InventoryItemType.Ammo,
-            AmmoType = ammoType,
-            Icon = icon,
-            MaxStack = AmmoStackMax,
-            StackCount = Mathf.Clamp(amount, 1, AmmoStackMax)
-        };
-
         if (!AddItemToBackpack(ammoItem))
         {
-            GD.PrintErr($"PlayerInventory: Backpack full, could not add starter ammo {displayName}.");
+            GD.PrintErr($"PlayerInventory: Backpack full, could not add starter ammo {ammoType}.");
         }
     }
 
-    public int CountAmmo(Combat.AmmoType ammoType)
+    public int CountAmmo(AmmoType ammoType)
     {
         var total = 0;
         foreach (var item in _backpack)
         {
-            if (item is null || item.ItemType != InventoryItemType.Ammo || item.AmmoType != ammoType)
+            if (item is not AmmoItem ammoItem || ammoItem.AmmoType != ammoType)
             {
                 continue;
             }
 
-            total += item.StackCount;
+            total += ammoItem.StackCount;
         }
 
         return total;
     }
 
-    public int ConsumeAmmo(Combat.AmmoType ammoType, int amount)
+    public int ConsumeAmmo(AmmoType ammoType, int amount)
     {
         if (amount <= 0)
         {
@@ -295,16 +244,16 @@ public partial class PlayerInventory : Node
         for (var i = 0; i < _backpack.Length; i++)
         {
             var item = _backpack[i];
-            if (item is null || item.ItemType != InventoryItemType.Ammo || item.AmmoType != ammoType)
+            if (item is not AmmoItem ammoItem || ammoItem.AmmoType != ammoType)
             {
                 continue;
             }
 
-            var take = Mathf.Min(item.StackCount, remaining);
-            item.StackCount -= take;
+            var take = Mathf.Min(ammoItem.StackCount, remaining);
+            ammoItem.StackCount -= take;
             remaining -= take;
 
-            if (item.StackCount <= 0)
+            if (ammoItem.StackCount <= 0)
             {
                 _backpack[i] = null;
             }
@@ -323,12 +272,9 @@ public partial class PlayerInventory : Node
         return amount - remaining;
     }
 
-    public void NotifyInventoryChanged()
-    {
-        EmitSignal(SignalName.InventoryChanged);
-    }
+    public void NotifyInventoryChanged() => EmitSignal(SignalName.InventoryChanged);
 
-    private bool CanFullyFitStack(InventoryItem item)
+    private bool CanFullyFitStack(Item item)
     {
         var needed = item.StackCount;
         var capacity = 0;
@@ -352,7 +298,7 @@ public partial class PlayerInventory : Node
         return capacity >= needed;
     }
 
-    private bool SetItemInternal(InventorySlotType slotType, int slotIndex, InventoryItem? item)
+    private bool SetItemInternal(InventorySlotType slotType, int slotIndex, Item? item)
     {
         if (slotType == InventorySlotType.Backpack)
         {
@@ -376,9 +322,6 @@ public partial class PlayerInventory : Node
 
     private bool IsBackpackIndexValid(int index) => index >= 0 && index < _backpack.Length;
 
-    private static bool IsWeaponSlot(InventorySlotType slotType)
-        => slotType == InventorySlotType.LeftHand || slotType == InventorySlotType.RightHand;
-
     private void SyncWeapons()
     {
         if (_weaponManager is null)
@@ -387,16 +330,14 @@ public partial class PlayerInventory : Node
         }
 
         var weapons = new List<WeaponData>();
-        var rightHand = GetItem(InventorySlotType.RightHand);
-        if (rightHand?.WeaponData is not null)
+        if (GetItem(InventorySlotType.RightHand) is WeaponItem rightWeapon && rightWeapon.WeaponData is not null)
         {
-            weapons.Add(rightHand.WeaponData);
+            weapons.Add(rightWeapon.WeaponData);
         }
 
-        var leftHand = GetItem(InventorySlotType.LeftHand);
-        if (leftHand?.WeaponData is not null)
+        if (GetItem(InventorySlotType.LeftHand) is WeaponItem leftWeapon && leftWeapon.WeaponData is not null)
         {
-            weapons.Add(leftHand.WeaponData);
+            weapons.Add(leftWeapon.WeaponData);
         }
 
         _weaponManager.SetWeapons(weapons, weapons.Count > 0 ? 0 : -1);

@@ -1,6 +1,7 @@
 namespace DAIgame.UI;
 
 using DAIgame.Core;
+using DAIgame.Core.Items;
 using DAIgame.Player;
 using Godot;
 
@@ -255,7 +256,7 @@ public partial class InventorySlotControl : PanelContainer
         UpdateCategoryBackground(item);
     }
 
-    private void UpdateCategoryBackground(InventoryItem? item)
+    private void UpdateCategoryBackground(Item? item)
     {
         if (_categoryBackground is null)
         {
@@ -271,10 +272,11 @@ public partial class InventorySlotControl : PanelContainer
         _categoryBackground.Visible = true;
         _categoryBackground.Color = item.ItemType switch
         {
-            InventoryItemType.Weapon => WeaponColor,
-            InventoryItemType.Usable => UsableColor,
-            InventoryItemType.Ammo => AmmoColor,
-            InventoryItemType.Outfit or InventoryItemType.Headwear or InventoryItemType.Shoes => WearableColor,
+            ItemType.Weapon => WeaponColor,
+            ItemType.Usable => UsableColor,
+            ItemType.Ammo => AmmoColor,
+            ItemType.Outfit or ItemType.Headwear or ItemType.Shoes => WearableColor,
+            ItemType.Misc => throw new System.NotImplementedException(),
             _ => DefaultColor
         };
     }
