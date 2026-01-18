@@ -196,11 +196,11 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 	private string _currentAttackAnim = "attack_pistol";
 	private float _baseAttackAnimSpeed = 12f;
 	private int _currentAttackFrameCount = 3;
-	private readonly Dictionary<string, float> _bodyWalkBaseSpeeds = new();
+	private readonly Dictionary<string, float> _bodyWalkBaseSpeeds = [];
 	private float _walkSpeedReference;
 	private float _currentMoveSpeed;
-	private readonly Dictionary<string, HeldAnimationAnchor> _heldAnchorLookup = new();
-	private readonly HashSet<string> _missingHeldAnchors = new();
+	private readonly Dictionary<string, HeldAnimationAnchor> _heldAnchorLookup = [];
+	private readonly HashSet<string> _missingHeldAnchors = [];
 	private string _lastHeldAnimation = string.Empty;
 	private Vector2 _heldBaseOffset = Vector2.Zero;
 	private Vector2 _heldWiggleOffset = Vector2.Zero;
@@ -1012,7 +1012,7 @@ private void HandleKick()
 		}
 
 		// Pause or play walk animation based on movement and looping preference
-		bool shouldLoopWalk = weapon?.WalkAnimationLoops ?? true;
+		var shouldLoopWalk = weapon?.WalkAnimationLoops ?? true;
 		if (!_isMoving && !_attackPlaying && IsWalkAnimation(_bodySprite.Animation) && !shouldLoopWalk)
 		{
 			_bodySprite.Stop();
@@ -1457,10 +1457,8 @@ private void HandleKick()
 		}
 	}
 
-	private void Die()
-	{
-		// For now, just restart by resetting health
-		// Later this could trigger a death screen or respawn system
-		CurrentHealth = _statsManager?.MaxHealth ?? 100f;
-	}
+    private void Die() =>
+        // For now, just restart by resetting health
+        // Later this could trigger a death screen or respawn system
+        CurrentHealth = _statsManager?.MaxHealth ?? 100f;
 }

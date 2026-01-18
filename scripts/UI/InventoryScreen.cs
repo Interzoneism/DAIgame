@@ -818,6 +818,8 @@ public partial class InventoryScreen : CanvasLayer
             ItemType.Outfit => InventorySlotType.Outfit,
             ItemType.Headwear => InventorySlotType.Headwear,
             ItemType.Shoes => InventorySlotType.Shoes,
+            ItemType.Ammo => throw new System.NotImplementedException(),
+            ItemType.Misc => throw new System.NotImplementedException(),
             _ => null
         };
     }
