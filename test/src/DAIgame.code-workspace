@@ -140,6 +140,9 @@
 				"icon": "terminal-powershell",
 				"source": "PowerShell"
 			}
+		},
+		"chat.tools.terminal.autoApprove": {
+			"ren": true
 		}
 	}
 }

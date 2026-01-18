@@ -229,10 +229,21 @@ public partial class GameManager : Node
     {
         var previousExposure = ColdExposure;
 
+        // Get player's cold resistance stat
+        var player = GetTree().GetFirstNodeInGroup("player") as Player.PlayerController;
+        var coldResistance = 0f;
+        if (player is not null)
+        {
+            // Get StatsManager from player to access ColdResistance
+            var statsManager = player.GetNodeOrNull<PlayerStatsManager>("PlayerStatsManager");
+            coldResistance = statsManager?.ColdResistance ?? 0f;
+        }
+
         if (IsNight && !IsPlayerIndoors)
         {
-            // Increase cold exposure at night when outdoors
-            ColdExposure = Mathf.Min(ColdExposure + (ColdExposureRate * delta), MaxColdExposure);
+            // Increase cold exposure at night when outdoors (reduced by cold resistance)
+            var effectiveRate = Mathf.Max(0f, ColdExposureRate - coldResistance);
+            ColdExposure = Mathf.Min(ColdExposure + (effectiveRate * delta), MaxColdExposure);
         }
         else
         {

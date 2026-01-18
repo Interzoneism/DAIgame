@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3 uid="uid://bx3d1r6cnb3o1"]
+[gd_scene load_steps=11 format=3 uid="uid://bx3d1r6cnb3o1"]
 
 [ext_resource type="SpriteFrames" uid="uid://2navlis0yapa" path="res://assets/spriteframes/sprF_player.tres" id="1_4geon"]
 [ext_resource type="Script" path="res://scripts/Player/PlayerController.cs" id="2_player"]
@@ -7,18 +7,10 @@
 [ext_resource type="PackedScene" uid="uid://b4v3jxqyqy7ym" path="res://scenes/effects/Bullet.tscn" id="5_bullet"]
 [ext_resource type="Script" path="res://scripts/Player/PlayerCamera.cs" id="7_camera"]
 [ext_resource type="Script" path="res://scripts/Player/PlayerInventory.cs" id="7_inventory"]
-[ext_resource type="Resource" path="res://data/weapons/pistol.tres" id="8_pistol"]
-[ext_resource type="Resource" path="res://data/weapons/shotgun.tres" id="9_shotgun"]
-[ext_resource type="Resource" path="res://data/weapons/uzi.tres" id="10_uzi"]
-[ext_resource type="Resource" path="res://data/weapons/bat.tres" id="11_bat"]
-[ext_resource type="Script" path="res://scripts/Loot/LootHighlighter.cs" id="12_loothighlighter"]
+[ext_resource type="Script" uid="uid://cfjsjojxx57iu" path="res://scripts/Loot/LootHighlighter.cs" id="12_loothighlighter"]
 [ext_resource type="Script" path="res://scripts/Core/InteractionManager.cs" id="13_interactionmanager"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_ddj42"]
-
-[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_eq5ko"]
-radius = 4.7393365
-height = 29.19708
 
 [node name="Player" type="CharacterBody2D"]
 z_index = 6
@@ -26,7 +18,9 @@ collision_layer = 2
 collision_mask = 21
 motion_mode = 1
 script = ExtResource("2_player")
-MoveSpeed = 100.0
+HeldWiggleAmplitude = 0.5
+HeldWiggleFrequency = 2.0
+BodyFireScalePixels = 20.0
 
 [node name="Collision" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_ddj42")
@@ -35,15 +29,11 @@ shape = SubResource("CircleShape2D_ddj42")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Body"]
 sprite_frames = ExtResource("1_4geon")
-animation = &"walk"
+animation = &"kick"
 
-[node name="Shadow" type="Sprite2D" parent="Body"]
-
-[node name="Hurtbox" type="Area2D" parent="Body"]
-
-[node name="HurtboxShape" type="CollisionShape2D" parent="Body/Hurtbox"]
-scale = Vector2(1.055, 0.685)
-shape = SubResource("CapsuleShape2D_eq5ko")
+[node name="Held" type="Sprite2D" parent="Body"]
+centered = false
+offset = Vector2(3.745, -5.085)
 
 [node name="Legs" type="Node2D" parent="."]
 
@@ -66,7 +56,6 @@ script = ExtResource("7_camera")
 
 [node name="LootHighlighter" type="Node" parent="."]
 script = ExtResource("12_loothighlighter")
-HighlightRadius = 100.0
 
 [node name="InteractionManager" type="Node" parent="."]
 script = ExtResource("13_interactionmanager")

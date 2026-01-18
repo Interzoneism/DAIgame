@@ -86,15 +86,12 @@ public partial class Projectile : Area2D
             var hitNormal = (Vector2)result["normal"];
             var collider = result["collider"].As<GodotObject>();
 
-            // ...existing code...
-
             GlobalPosition = hitPosition;
             HandleCollision(collider as Node2D, hitPosition, hitNormal);
         }
         else
         {
             // No collision, move normally
-            // ...existing code...
             GlobalPosition = endPos;
         }
 
@@ -112,7 +109,6 @@ public partial class Projectile : Area2D
     {
         _direction = direction.Normalized();
         Rotation = _direction.Angle();
-        // ...existing code...
     }
 
     private void OnBodyEntered(Node2D body)
@@ -123,7 +119,6 @@ public partial class Projectile : Area2D
         }
 
         // Fallback for Area2D collision (should rarely trigger now that we use raycast)
-        // ...existing code...
         var hitPosition = GlobalPosition;
         var hitNormal = -_direction;
         HandleCollision(body, hitPosition, hitNormal);
@@ -137,7 +132,6 @@ public partial class Projectile : Area2D
         }
 
         _hasHit = true;
-        // ...existing code...
 
         // Check if the body or its parent is damageable
         var damageable = FindDamageableTarget(body);

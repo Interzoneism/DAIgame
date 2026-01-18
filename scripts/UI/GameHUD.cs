@@ -1,5 +1,6 @@
 namespace DAIgame.UI;
 
+using System.Text;
 using DAIgame.Combat;
 using DAIgame.Core;
 using DAIgame.Player;
@@ -18,7 +19,13 @@ public partial class GameHUD : CanvasLayer
     private Label? _coldLabel;
     private Label? _timeLabel;
     private Label? _slowMoLabel;
+    private Label? _debugStatsLabel;
     private PlayerController? _player;
+    private PlayerStatsManager? _statsManager;
+    private bool _debugMode;
+    private bool _debugDirty = true;
+    private float _lastDisplayedAccuracy = -1f;
+    private float _lastDisplayedRecoilPenalty = -1f;
 
     // Weapon HUD elements
     private VBoxContainer? _weaponContainer;
@@ -143,6 +150,14 @@ public partial class GameHUD : CanvasLayer
         };
         container.AddChild(_timeLabel);
 
+        _debugStatsLabel = new Label
+        {
+            Text = "",
+            Visible = false,
+            CustomMinimumSize = new Vector2(220, 0)
+        };
+        container.AddChild(_debugStatsLabel);
+
         // Slow-mo indicator (bottom left)
         _slowMoLabel = new Label
         {
@@ -266,12 +281,15 @@ public partial class GameHUD : CanvasLayer
 
     public override void _Process(double delta)
     {
+        HandleDebugToggle();
         UpdatePlayerReference();
+        UpdateStatsManagerReference();
         UpdateWeaponManagerReference();
         UpdateHealthDisplay();
         UpdateColdDisplay();
         UpdateTimeDisplay();
         UpdateSlowMoDisplay();
+        UpdateDebugStatsDisplay();
         UpdateWeaponDisplay();
         UpdateInteractionTooltip();
     }
@@ -283,25 +301,103 @@ public partial class GameHUD : CanvasLayer
             return;
         }
 
+        DisconnectWeaponManagerSignals();
+        if (_statsManager is not null && IsInstanceValid(_statsManager))
+        {
+            _statsManager.StatsRecalculated -= OnStatsRecalculated;
+        }
+
         var players = GetTree().GetNodesInGroup("player");
         _player = players.Count > 0 ? players[0] as PlayerController : null;
         _weaponManager = null; // Reset weapon manager when player changes
+        _statsManager = null; // Reset stats manager when player changes
+        ResetAccuracyTracking();
+        _debugDirty = true;
     }
 
-    private void UpdateWeaponManagerReference()
+    private void UpdateStatsManagerReference()
     {
-        if (_weaponManager is not null && IsInstanceValid(_weaponManager))
+        if (_statsManager is not null && IsInstanceValid(_statsManager))
         {
             return;
         }
 
         if (_player is null)
         {
-            _weaponManager = null;
+            _statsManager = null;
+            _debugDirty = true;
             return;
         }
 
+        _statsManager = _player.GetNodeOrNull<PlayerStatsManager>("PlayerStatsManager");
+        if (_statsManager is null)
+        {
+            foreach (var child in _player.GetChildren())
+            {
+                if (child is PlayerStatsManager manager)
+                {
+                    _statsManager = manager;
+                    break;
+                }
+            }
+        }
+        if (_statsManager is not null)
+        {
+            _statsManager.StatsRecalculated += OnStatsRecalculated;
+            _debugDirty = true;
+        }
+    }
+
+    private void HandleDebugToggle()
+    {
+        if (!Input.IsActionJustPressed("DebugMode"))
+        {
+            return;
+        }
+
+        _debugMode = !_debugMode;
+        if (_debugStatsLabel is not null)
+        {
+            _debugStatsLabel.Visible = _debugMode;
+        }
+        _debugDirty = true;
+    }
+
+    private void UpdateWeaponManagerReference()
+    {
+        if (_player is null)
+        {
+            DisconnectWeaponManagerSignals();
+            return;
+        }
+
+        if (_weaponManager is not null && IsInstanceValid(_weaponManager))
+        {
+            return;
+        }
+
+        DisconnectWeaponManagerSignals();
+
         _weaponManager = _player.GetNodeOrNull<WeaponManager>("WeaponManager");
+        if (_weaponManager is null)
+        {
+            foreach (var child in _player.GetChildren())
+            {
+                if (child is WeaponManager manager)
+                {
+                    _weaponManager = manager;
+                    break;
+                }
+            }
+        }
+
+        if (_weaponManager is not null)
+        {
+            _weaponManager.WeaponChanged += OnWeaponChanged;
+            _weaponManager.WeaponFired += OnWeaponFired;
+            ResetAccuracyTracking();
+            _debugDirty = true;
+        }
     }
 
     private void UpdateWeaponDisplay()
@@ -440,9 +536,117 @@ public partial class GameHUD : CanvasLayer
         _slowMoLabel.Text = gm is not null && gm.IsSlowMoActive ? "◆ SLOW-MO ◆" : "";
     }
 
+    private void UpdateDebugStatsDisplay()
+    {
+        if (!_debugMode || _debugStatsLabel is null)
+        {
+            return;
+        }
+
+        var accuracyPercent = GetCurrentAccuracyPercent();
+        var recoilPenalty = GetCurrentRecoilPenalty();
+
+        if (!_debugDirty && (!Mathf.IsEqualApprox(accuracyPercent, _lastDisplayedAccuracy) || !Mathf.IsEqualApprox(recoilPenalty, _lastDisplayedRecoilPenalty)))
+        {
+            _debugDirty = true;
+        }
+
+        if (!_debugDirty)
+        {
+            return;
+        }
+
+        var weaponName = _weaponManager?.CurrentWeapon?.DisplayName ?? "No Weapon";
+
+        // Set a smaller line spacing for the debug stats label
+        _debugStatsLabel.AddThemeConstantOverride("line_spacing", -5);
+
+        var sb = new StringBuilder();
+        sb.AppendLine("DEBUG STATS");
+        sb.AppendLine($"Accuracy: {accuracyPercent:F1}% ({weaponName}, recoil {recoilPenalty:F1}%)");
+
+        if (_statsManager is null)
+        {
+            sb.AppendLine("(No stats manager)");
+            _debugStatsLabel.Text = sb.ToString().TrimEnd();
+            _lastDisplayedAccuracy = accuracyPercent;
+            _lastDisplayedRecoilPenalty = recoilPenalty;
+            _debugDirty = false;
+            return;
+        }
+
+        foreach (StatType stat in System.Enum.GetValues<StatType>())
+        {
+            sb.AppendLine($"{stat}: {_statsManager.GetStat(stat):F2}");
+        }
+
+        _debugStatsLabel.Text = sb.ToString().TrimEnd();
+        _lastDisplayedAccuracy = accuracyPercent;
+        _lastDisplayedRecoilPenalty = recoilPenalty;
+        _debugDirty = false;
+    }
+
     private void OnColdExposureChanged(float exposure, float maxExposure)
     {
         // Additional feedback could go here (screen effects, sounds, etc.)
+    }
+
+    private void OnStatsRecalculated()
+    {
+        _debugDirty = true;
+    }
+
+    private void OnWeaponChanged(WeaponData? weapon)
+    {
+        ResetAccuracyTracking();
+        _debugDirty = true;
+    }
+
+    private void OnWeaponFired(WeaponData weapon)
+    {
+        _debugDirty = true;
+    }
+
+    private float GetCurrentAccuracyPercent()
+    {
+        if (_weaponManager is null || !IsInstanceValid(_weaponManager))
+        {
+            return 100f;
+        }
+
+        return _weaponManager.GetTotalAccuracyPercent();
+    }
+
+    private float GetCurrentRecoilPenalty()
+    {
+        if (_weaponManager is null || !IsInstanceValid(_weaponManager))
+        {
+            return 0f;
+        }
+
+        return _weaponManager.CurrentRecoilPenalty;
+    }
+
+    private void DisconnectWeaponManagerSignals()
+    {
+        if (_weaponManager is null)
+        {
+            return;
+        }
+
+        if (IsInstanceValid(_weaponManager))
+        {
+            _weaponManager.WeaponChanged -= OnWeaponChanged;
+            _weaponManager.WeaponFired -= OnWeaponFired;
+        }
+
+        _weaponManager = null;
+    }
+
+    private void ResetAccuracyTracking()
+    {
+        _lastDisplayedAccuracy = -1f;
+        _lastDisplayedRecoilPenalty = -1f;
     }
 
     public override void _ExitTree()
@@ -452,6 +656,13 @@ public partial class GameHUD : CanvasLayer
         {
             gm.ColdExposureChanged -= OnColdExposureChanged;
         }
+
+        if (_statsManager is not null && IsInstanceValid(_statsManager))
+        {
+            _statsManager.StatsRecalculated -= OnStatsRecalculated;
+        }
+
+        DisconnectWeaponManagerSignals();
 
         if (_interactionManager is not null)
         {

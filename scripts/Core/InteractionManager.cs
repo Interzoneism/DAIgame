@@ -33,7 +33,7 @@ public partial class InteractionManager : Node
 
         if (_player is null)
         {
-            // ...existing code...
+            GD.PrintErr("InteractionManager: Parent is not a Node2D.");
         }
     }
 
@@ -91,7 +91,7 @@ public partial class InteractionManager : Node
         if (HoveredInteractable != newHovered)
         {
             HoveredInteractable = newHovered;
-            EmitSignal(SignalName.HoveredInteractableChanged, (Node?)newHovered);
+            EmitSignal(SignalName.HoveredInteractableChanged, (newHovered as Node)!); // null is valid for signal
         }
     }
 
@@ -104,7 +104,6 @@ public partial class InteractionManager : Node
         ref float closestDistSq)
     {
         var nodes = GetTree().GetNodesInGroup(groupName);
-        // ...existing code...
 
         foreach (var node in nodes)
         {
@@ -143,6 +142,7 @@ public partial class InteractionManager : Node
     private static bool IsMouseOverInteractable(IInteractable interactable, Vector2 mousePos)
     {
         var area = interactable.GetInteractionArea();
+
         if (area is not null)
         {
             // Check each collision shape in the area
