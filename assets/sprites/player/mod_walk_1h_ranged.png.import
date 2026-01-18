@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://srgymtien2ic"
-path="res://.godot/imported/w_0032_Layer-4.png-6d4d86743225539eda6bd614cf6b23f8.ctex"
+uid="uid://66lw0c0bx77"
+path="res://.godot/imported/mod_walk_1h_ranged.png-7b4d1a013b444b07ec9e7083fff078c5.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/items/misc/w_0032_Layer-4.png"
-dest_files=["res://.godot/imported/w_0032_Layer-4.png-6d4d86743225539eda6bd614cf6b23f8.ctex"]
+source_file="res://assets/sprites/player/mod_walk_1h_ranged.png"
+dest_files=["res://.godot/imported/mod_walk_1h_ranged.png-7b4d1a013b444b07ec9e7083fff078c5.ctex"]
 
 [params]
 

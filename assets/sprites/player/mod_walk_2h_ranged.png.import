@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ca0t7l7pkjxmn"
-path="res://.godot/imported/icon_uzi.png-48180ffa993ed014bed9d85bc904bdf0.ctex"
+uid="uid://b8rtvycovulw0"
+path="res://.godot/imported/mod_walk_2h_ranged.png-28a09a0d19b46148c879f83e0d309598.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/icon_uzi.png"
-dest_files=["res://.godot/imported/icon_uzi.png-48180ffa993ed014bed9d85bc904bdf0.ctex"]
+source_file="res://assets/sprites/player/mod_walk_2h_ranged.png"
+dest_files=["res://.godot/imported/mod_walk_2h_ranged.png-28a09a0d19b46148c879f83e0d309598.ctex"]
 
 [params]
 

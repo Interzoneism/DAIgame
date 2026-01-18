@@ -141,6 +141,15 @@ public partial class LootSlotControl : PanelContainer
         }
 
         // Left-click release to pick up or place
+        if (mouseButton.ButtonIndex == MouseButton.Left && !mouseButton.Pressed && mouseButton.ShiftPressed)
+        {
+            if (!inventoryScreen.HasHeldItem && inventoryScreen.TryQuickLoot(Lootable, SlotIndex))
+            {
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+        }
+
         if (mouseButton.ButtonIndex != MouseButton.Left || mouseButton.Pressed)
         {
             return;

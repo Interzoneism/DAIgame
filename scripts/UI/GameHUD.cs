@@ -563,7 +563,7 @@ public partial class GameHUD : CanvasLayer
 
         var sb = new StringBuilder();
         sb.AppendLine("DEBUG STATS");
-        sb.AppendLine($"Accuracy: {accuracyPercent:F1}% ({weaponName}, recoil {recoilPenalty:F1} deg)");
+        sb.AppendLine($"Accuracy: {accuracyPercent:F1}% ({weaponName}, recoil {recoilPenalty:F1}%)");
 
         if (_statsManager is null)
         {

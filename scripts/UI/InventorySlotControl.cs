@@ -157,6 +157,24 @@ public partial class InventorySlotControl : PanelContainer
             return;
         }
 
+        if (mouseButton.ButtonIndex == MouseButton.Left && !mouseButton.Pressed && mouseButton.ShiftPressed)
+        {
+            if (Inventory is null)
+            {
+                return;
+            }
+
+            var quickInventoryScreen = InventoryScreen.Instance;
+            if (quickInventoryScreen is not null && !quickInventoryScreen.HasHeldItem)
+            {
+                if (quickInventoryScreen.TryQuickEquip(Inventory, SlotType, SlotIndex))
+                {
+                    GetViewport().SetInputAsHandled();
+                    return;
+                }
+            }
+        }
+
         if (mouseButton.ButtonIndex != MouseButton.Left || mouseButton.Pressed)
         {
             return;

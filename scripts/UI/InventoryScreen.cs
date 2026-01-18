@@ -38,6 +38,8 @@ public partial class InventoryScreen : CanvasLayer
     private ILootable? _heldFromLootable;
     private LootWindow? _groundItemsWindow;
     private LootHighlighter? _lootHighlighter;
+    private bool _isLootFocus;
+    private ILootable? _focusedLootable;
 
     // Dragging fields
     private PanelContainer? _inventoryPanel;
@@ -88,6 +90,12 @@ public partial class InventoryScreen : CanvasLayer
             return;
         }
 
+        if (_isLootFocus)
+        {
+            GD.Print("InventoryScreen: ViewLoot toggled while focused; keeping focused loot window.");
+            return;
+        }
+
         if (isActive)
         {
             ShowLootPanels();
@@ -132,11 +140,17 @@ public partial class InventoryScreen : CanvasLayer
 
         // Show only the targeted lootable
         ShowSingleLootable(lootable);
+        if (LootHighlighter.Instance?.IsViewLootActive == true)
+        {
+            GD.Print("InventoryScreen: Loot focus active; suppressing ViewLoot panels.");
+        }
     }
 
     private void ShowSingleLootable(ILootable lootable)
     {
         ClearLootPanels();
+        _isLootFocus = true;
+        _focusedLootable = lootable;
 
         // Calculate position for the loot window (to the right of inventory)
         var inventoryRight = 0f;
@@ -728,6 +742,83 @@ public partial class InventoryScreen : CanvasLayer
         UpdateHeldIcon();
     }
 
+    public bool TryQuickEquip(PlayerInventory inventory, InventorySlotType fromType, int fromIndex)
+    {
+        if (fromType != InventorySlotType.Backpack)
+        {
+            return false;
+        }
+
+        var item = inventory.GetItem(fromType, fromIndex);
+        if (item is null)
+        {
+            return false;
+        }
+
+        var targetSlot = GetPreferredEquipSlot(inventory, item);
+        if (targetSlot is null)
+        {
+            return false;
+        }
+
+        if (!inventory.CanPlaceItem(item, targetSlot.Value))
+        {
+            return false;
+        }
+
+        if (!inventory.TryMoveItem(fromType, fromIndex, targetSlot.Value, -1))
+        {
+            GD.Print($"InventoryScreen: Quick-equip failed for '{item.DisplayName}' into {targetSlot.Value}.");
+            return false;
+        }
+
+        return true;
+    }
+
+    public bool TryQuickLoot(ILootable lootable, int slotIndex)
+    {
+        if (_inventory is null)
+        {
+            GD.PrintErr("InventoryScreen: Quick-loot failed; inventory missing.");
+            return false;
+        }
+
+        var item = lootable.TakeItemAt(slotIndex);
+        if (item is null)
+        {
+            return false;
+        }
+
+        if (!_inventory.AddItemToBackpack(item))
+        {
+            if (!lootable.SetItemAt(slotIndex, item))
+            {
+                GD.PrintErr("InventoryScreen: Quick-loot failed; could not return item to lootable.");
+            }
+            return false;
+        }
+
+        RefreshLootSlots();
+        return true;
+    }
+
+    private static InventorySlotType? GetPreferredEquipSlot(PlayerInventory inventory, InventoryItem item)
+    {
+        return item.ItemType switch
+        {
+            InventoryItemType.Weapon => InventorySlotType.RightHand,
+            InventoryItemType.Usable => inventory.GetItem(InventorySlotType.Usable1) is null
+                ? InventorySlotType.Usable1
+                : inventory.GetItem(InventorySlotType.Usable2) is null
+                    ? InventorySlotType.Usable2
+                    : InventorySlotType.Usable1,
+            InventoryItemType.Outfit => InventorySlotType.Outfit,
+            InventoryItemType.Headwear => InventorySlotType.Headwear,
+            InventoryItemType.Shoes => InventorySlotType.Shoes,
+            _ => null
+        };
+    }
+
     public bool TrySplitStack(PlayerInventory inventory, InventorySlotType fromType, int fromIndex)
     {
         if (HeldItem is not null)
@@ -998,6 +1089,12 @@ public partial class InventoryScreen : CanvasLayer
         {
             _groundItemsWindow = null;
         }
+
+        if (_isLootFocus && window.Lootable == _focusedLootable)
+        {
+            _isLootFocus = false;
+            _focusedLootable = null;
+        }
     }
 
     private void ClearLootPanels()
@@ -1010,13 +1107,15 @@ public partial class InventoryScreen : CanvasLayer
         _lootWindows.Clear();
         _groundItemsWindow = null;
         _activeLootables.Clear();
+        _isLootFocus = false;
+        _focusedLootable = null;
     }
 
     private void UpdateLootPanels()
     {
         // Check if any lootable was removed or went out of range
         var highlighter = LootHighlighter.Instance;
-        if (highlighter is null || !highlighter.IsViewLootActive)
+        if (!_isLootFocus && (highlighter is null || !highlighter.IsViewLootActive))
         {
             if (_activeLootables.Count > 0)
             {

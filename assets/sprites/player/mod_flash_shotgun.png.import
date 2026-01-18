@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bj1fqbuv5dmmx"
-path="res://.godot/imported/w_0033_Layer-3.png-e84bfb2b522174a367a810757d299220.ctex"
+uid="uid://dxst67ixu7dn0"
+path="res://.godot/imported/mod_flash_shotgun.png-68554770c6819684f14e7fe5c80cbf23.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/items/misc/w_0033_Layer-3.png"
-dest_files=["res://.godot/imported/w_0033_Layer-3.png-e84bfb2b522174a367a810757d299220.ctex"]
+source_file="res://assets/sprites/player/mod_flash_shotgun.png"
+dest_files=["res://.godot/imported/mod_flash_shotgun.png-68554770c6819684f14e7fe5c80cbf23.ctex"]
 
 [params]
 

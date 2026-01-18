@@ -230,10 +230,10 @@ public partial class LootableCorpse : CharacterBody2D, ILootable, IInteractable
 
         var iconPaths = new Dictionary<string, string>
         {
-            { "pistol", "res://assets/sprites/icon_uzi.png" },
-            { "shotgun", "res://assets/sprites/icon_uzi.png" },
-            { "uzi", "res://assets/sprites/icon_uzi.png" },
-            { "bat", "res://assets/sprites/icon_uzi.png" }
+            { "pistol", "res://assets/sprites/items/icons/icon_weapon_ranged_pistol.png" },
+            { "shotgun", "res://assets/sprites/items/icons/icon_weapon_ranged_shotgun.png" },
+            { "uzi", "res://assets/sprites/items/icons/icon_weapon_ranged_uzi.png" },
+            { "bat", "res://assets/sprites/items/icons/icon_weapon_melee_bat.png" }
         };
 
         var idx = (int)(GD.Randi() % weaponPaths.Length);
@@ -263,12 +263,11 @@ public partial class LootableCorpse : CharacterBody2D, ILootable, IInteractable
     private static InventoryItem? GenerateRandomAmmo()
     {
         var ammoTypes = new[]
-        {
-            (AmmoType.Small, "Ammo (Small)", "res://assets/sprites/ammo/ammo_small.png", 10, 30),
-            (AmmoType.Rifle, "Ammo (Rifle)", "res://assets/sprites/ammo/ammo_rifle.png", 5, 20),
-            (AmmoType.Shotgun, "Ammo (Shotgun)", "res://assets/sprites/ammo/ammo_shotgun.png", 4, 12)
-        };
-
+            {
+                (AmmoType.Small, "Ammo (Small)", "res://assets/sprites/items/icons/icon_ammo_small.png", 10, 30),
+                (AmmoType.Rifle, "Ammo (Rifle)", "res://assets/sprites/items/icons/icon_ammo_rifle.png", 5, 20),
+                (AmmoType.Shotgun, "Ammo (Shotgun)", "res://assets/sprites/items/icons/icon_ammo_shotgun.png", 4, 12)
+            };
         var idx = (int)(GD.Randi() % ammoTypes.Length);
         var (ammoType, displayName, iconPath, minAmount, maxAmount) = ammoTypes[idx];
 

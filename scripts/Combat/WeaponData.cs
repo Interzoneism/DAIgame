@@ -167,9 +167,52 @@ public partial class WeaponData : Resource
 
     /// <summary>
     /// Animation name suffix for this weapon (e.g., "pistol" for walk_pistol, attack_pistol).
+    /// Used when explicit animation names are not set.
     /// </summary>
     [Export]
     public string AnimationSuffix { get; set; } = "pistol";
+
+    /// <summary>
+    /// Optional explicit walk animation name (overrides AnimationSuffix when set).
+    /// </summary>
+    [Export]
+    public string WalkAnimationName { get; set; } = "";
+
+    /// <summary>
+    /// Optional explicit attack animation name (overrides AnimationSuffix when set).
+    /// </summary>
+    [Export]
+    public string AttackAnimationName { get; set; } = "";
+
+    /// <summary>
+    /// Texture to use for the held weapon sprite.
+    /// </summary>
+    [Export]
+    public Texture2D HeldSprite { get; set; }
+
+    /// <summary>
+    /// Offset position for the held sprite relative to the player's body center.
+    /// </summary>
+    [Export]
+    public Vector2 HoldOffset { get; set; } = Vector2.Zero;
+
+    /// <summary>
+    /// If true, the attack animation will loop (for automatic weapons).
+    /// </summary>
+    [Export]
+    public bool AttackAnimationLoops { get; set; } = false;
+
+    /// <summary>
+    /// If true, the held item will sync its rotation with the body's attack animation.
+    /// </summary>
+    [Export]
+    public bool SyncsWithBodyAnimation { get; set; } = true;
+
+    /// <summary>
+    /// If true, the walk animation will loop.
+    /// </summary>
+    [Export]
+    public bool WalkAnimationLoops { get; set; } = true;
 
     /// <summary>
     /// Maximum ammo capacity. Set to -1 for unlimited.
@@ -296,6 +339,13 @@ public partial class WeaponData : Resource
             RecoilRecovery = RecoilRecovery,
             RecoilWarmup = RecoilWarmup,
             AnimationSuffix = AnimationSuffix,
+            WalkAnimationName = WalkAnimationName,
+            AttackAnimationName = AttackAnimationName,
+            HeldSprite = HeldSprite,
+            HoldOffset = HoldOffset,
+            AttackAnimationLoops = AttackAnimationLoops,
+            SyncsWithBodyAnimation = SyncsWithBodyAnimation,
+            WalkAnimationLoops = WalkAnimationLoops,
             MaxAmmo = MaxAmmo,
             MagazineSize = MagazineSize,
             ReloadTime = ReloadTime,
@@ -318,10 +368,12 @@ public partial class WeaponData : Resource
     /// <summary>
     /// Gets the walk animation name for this weapon.
     /// </summary>
-    public string GetWalkAnimation() => $"walk_{AnimationSuffix}";
+    public string GetWalkAnimation()
+        => !string.IsNullOrWhiteSpace(WalkAnimationName) ? WalkAnimationName : $"walk_{AnimationSuffix}";
 
     /// <summary>
     /// Gets the attack animation name for this weapon.
     /// </summary>
-    public string GetAttackAnimation() => $"attack_{AnimationSuffix}";
+    public string GetAttackAnimation()
+        => !string.IsNullOrWhiteSpace(AttackAnimationName) ? AttackAnimationName : $"attack_{AnimationSuffix}";
 }

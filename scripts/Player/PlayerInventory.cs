@@ -207,7 +207,7 @@ public partial class PlayerInventory : Node
     private void AddStarterItems()
     {
         var weapon = ResourceLoader.Load<WeaponData>("res://data/weapons/uzi.tres");
-        var icon = ResourceLoader.Load<Texture2D>("res://assets/sprites/icon_uzi.png");
+        var icon = ResourceLoader.Load<Texture2D>("res://assets/sprites/items/icons/icon_weapon_ranged_uzi.png");
 
         if (weapon is null)
         {
@@ -237,9 +237,9 @@ public partial class PlayerInventory : Node
             GD.PrintErr("PlayerInventory: Backpack full, could not add starter uzi.");
         }
 
-        AddStarterAmmo(Combat.AmmoType.Small, "Ammo (Small)", "res://assets/sprites/ammo/ammo_small.png", 120);
-        AddStarterAmmo(Combat.AmmoType.Rifle, "Ammo (Rifle)", "res://assets/sprites/ammo/ammo_rifle.png", 60);
-        AddStarterAmmo(Combat.AmmoType.Shotgun, "Ammo (Shotgun)", "res://assets/sprites/ammo/ammo_shotgun.png", 30);
+        AddStarterAmmo(Combat.AmmoType.Small, "Ammo (Small)", "res://assets/sprites/items/icons/icon_ammo_small.png", 120);
+        AddStarterAmmo(Combat.AmmoType.Rifle, "Ammo (Rifle)", "res://assets/sprites/items/icons/icon_ammo_rifle.png", 60);
+        AddStarterAmmo(Combat.AmmoType.Shotgun, "Ammo (Shotgun)", "res://assets/sprites/items/icons/icon_ammo_shotgun.png", 30);
     }
 
     private void AddStarterAmmo(Combat.AmmoType ammoType, string displayName, string iconPath, int amount)

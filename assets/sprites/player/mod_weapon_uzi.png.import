@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bsrtup223xtxd"
-path="res://.godot/imported/ammo_rifle.png-593d18b1a46f7c640c9b57db39760c66.ctex"
+uid="uid://bruhbqt1ghg2k"
+path="res://.godot/imported/mod_weapon_uzi.png-c68353adfcf37628caff37137eaae48e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/ammo/ammo_rifle.png"
-dest_files=["res://.godot/imported/ammo_rifle.png-593d18b1a46f7c640c9b57db39760c66.ctex"]
+source_file="res://assets/sprites/player/mod_weapon_uzi.png"
+dest_files=["res://.godot/imported/mod_weapon_uzi.png-c68353adfcf37628caff37137eaae48e.ctex"]
 
 [params]
 

@@ -125,7 +125,7 @@ public partial class WeaponManager : Node2D
     public MeleeWeaponHandler? MeleeHandler { get; private set; }
 
     /// <summary>
-    /// Current accuracy penalty from accumulated recoil (0 = no penalty, grows with each shot).
+    /// Current accuracy penalty from accumulated recoil in percentage points.
     /// </summary>
     public float CurrentRecoilPenalty { get; private set; }
 
@@ -214,7 +214,7 @@ public partial class WeaponManager : Node2D
             _lastReticuleWeaponIndex = CurrentWeaponIndex;
             var totalSpreadDeg = GetTotalSpreadDegrees(weapon);
             var maxInaccuracyDeg = GetMaxInaccuracyDegrees(weapon);
-            GD.Print($"WeaponManager: Reticule accuracy {totalAccuracy:F1}% for {weapon.DisplayName} (spread {totalSpreadDeg:F1}° / max {maxInaccuracyDeg:F1}°)");
+            GD.Print($"WeaponManager: Reticule accuracy {totalAccuracy:F1}% for {weapon.DisplayName} (spread {totalSpreadDeg:F1} deg / max {maxInaccuracyDeg:F1} deg)");
         }
     }
 
@@ -648,11 +648,12 @@ public partial class WeaponManager : Node2D
 
         var pelletCount = weapon.PelletCount;
 
-        // Calculate effective spread: accuracy-scaled stability + accumulated recoil penalty
+        // Calculate effective spread from recoil-adjusted accuracy.
         // Stability is the max inaccuracy at 0% accuracy; higher accuracy reduces base spread.
-        var accuracyPercent = GetBaseAccuracyPercent(weapon);
+        var baseAccuracyPercent = GetBaseAccuracyPercent(weapon);
+        var accuracyPercent = GetRecoilAdjustedAccuracyPercent(weapon);
         var stabilitySpreadDeg = GetStabilitySpreadDegrees(weapon, accuracyPercent);
-        var totalSpreadDeg = GetTotalSpreadDegrees(weapon);
+        var totalSpreadDeg = stabilitySpreadDeg + weapon.SpreadAngle;
         var spreadRad = Mathf.DegToRad(totalSpreadDeg);
         var baseAngle = direction.Angle();
 
@@ -682,7 +683,7 @@ public partial class WeaponManager : Node2D
             bullet.Initialize(pelletDir);
         }
 
-        GD.Print($"WeaponManager: Fired {pelletCount} projectile(s) from {weapon.DisplayName} (spread: {totalSpreadDeg:F1}° = stability {stabilitySpreadDeg:F1}° @ {accuracyPercent:F0}% + recoil {CurrentRecoilPenalty:F1}° + weapon spread {weapon.SpreadAngle:F1}°)");
+        GD.Print($"WeaponManager: Fired {pelletCount} projectile(s) from {weapon.DisplayName} (spread: {totalSpreadDeg:F1} deg = stability {stabilitySpreadDeg:F1} deg @ {accuracyPercent:F0}% (base {baseAccuracyPercent:F0}% - recoil {CurrentRecoilPenalty:F1}%) + weapon spread {weapon.SpreadAngle:F1} deg)");
     }
 
     /// <summary>
@@ -721,9 +722,9 @@ public partial class WeaponManager : Node2D
 
     private float GetTotalSpreadDegrees(WeaponData weapon)
     {
-        var accuracyPercent = GetBaseAccuracyPercent(weapon);
+        var accuracyPercent = GetRecoilAdjustedAccuracyPercent(weapon);
         var stabilitySpreadDeg = GetStabilitySpreadDegrees(weapon, accuracyPercent);
-        return stabilitySpreadDeg + CurrentRecoilPenalty + weapon.SpreadAngle;
+        return stabilitySpreadDeg + weapon.SpreadAngle;
     }
 
     private static float GetMaxInaccuracyDegrees(WeaponData weapon)
@@ -741,6 +742,12 @@ public partial class WeaponManager : Node2D
         }
 
         return multiplier;
+    }
+
+    private float GetRecoilAdjustedAccuracyPercent(WeaponData weapon)
+    {
+        var accuracy = GetBaseAccuracyPercent(weapon);
+        return Mathf.Clamp(accuracy - CurrentRecoilPenalty, 0f, 100f);
     }
 
     /// <summary>

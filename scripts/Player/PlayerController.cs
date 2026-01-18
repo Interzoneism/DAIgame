@@ -1,5 +1,6 @@
 namespace DAIgame.Player;
 
+using System.Collections.Generic;
 using DAIgame.Combat;
 using DAIgame.Core;
 using Godot;
@@ -26,6 +27,60 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 	/// </summary>
 	[Export]
 	public float WeaponWalkDuration { get; set; } = 2f;
+
+	/// <summary>
+	/// Max pixel amplitude for held-item walk wiggle at full move speed.
+	/// </summary>
+	[Export]
+	public float HeldWiggleAmplitude { get; set; } = 2.5f;
+
+	/// <summary>
+	/// Wiggle frequency in cycles per second at full move speed.
+	/// </summary>
+	[Export]
+	public float HeldWiggleFrequency { get; set; } = 9f;
+
+	/// <summary>
+	/// Pixels of recoil kick applied to held item per ranged shot.
+	/// </summary>
+	[Export]
+	public float HeldRecoilKick { get; set; } = 1.5f;
+
+	/// <summary>
+	/// Max pixels of recoil offset allowed.
+	/// </summary>
+	[Export]
+	public float HeldRecoilMax { get; set; } = 3f;
+
+	/// <summary>
+	/// Pixels per second to return held recoil offset to zero.
+	/// </summary>
+	[Export]
+	public float HeldRecoilReturnSpeed { get; set; } = 16f;
+
+	/// <summary>
+	/// Pixel-based kick amount for subtle body scale recoil on ranged fire.
+	/// </summary>
+	[Export]
+	public float BodyFireScalePixels { get; set; } = 1.5f;
+
+	/// <summary>
+	/// Spring strength for body scale recoil.
+	/// </summary>
+	[Export]
+	public float BodyFireScaleSpring { get; set; } = 120f;
+
+	/// <summary>
+	/// Damping for body scale recoil (higher = less oscillation).
+	/// </summary>
+	[Export]
+	public float BodyFireScaleDamping { get; set; } = 18f;
+
+	/// <summary>
+	/// Per-animation anchors for held items (offset + rotation when facing east).
+	/// </summary>
+	[Export]
+	public Godot.Collections.Array<HeldAnimationAnchor> HeldAnimationAnchors { get; set; } = [];
 
 	/// <summary>
 	/// Amount of health restored per heal item use.
@@ -120,8 +175,10 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 
 	private Node2D? _bodyNode;
 	private AnimatedSprite2D? _bodySprite;
+	private Sprite2D? _heldSprite;
 	private Node2D? _legsNode;
 	private AnimatedSprite2D? _legsSprite;
+	private Node2D? _bodyScaleNode;
 	private WeaponManager? _weaponManager;
 	private Vector2 _lastMoveDir = Vector2.Right;
 	private Vector2 _aimDirection = Vector2.Right;
@@ -139,6 +196,21 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 	private string _currentAttackAnim = "attack_pistol";
 	private float _baseAttackAnimSpeed = 12f;
 	private int _currentAttackFrameCount = 3;
+	private readonly Dictionary<string, float> _bodyWalkBaseSpeeds = new();
+	private float _walkSpeedReference;
+	private float _currentMoveSpeed;
+	private readonly Dictionary<string, HeldAnimationAnchor> _heldAnchorLookup = new();
+	private readonly HashSet<string> _missingHeldAnchors = new();
+	private string _lastHeldAnimation = string.Empty;
+	private Vector2 _heldBaseOffset = Vector2.Zero;
+	private Vector2 _heldWiggleOffset = Vector2.Zero;
+	private Vector2 _heldRecoilOffset = Vector2.Zero;
+	private float _heldWiggleTime;
+	private float _heldBaseRotationRad;
+	private Vector2 _bodyBaseScale = Vector2.One;
+	private Vector2 _bodyScaleOffset = Vector2.Zero;
+	private Vector2 _bodyScaleVelocity = Vector2.Zero;
+	private float _cachedBodySpriteSize = 32f;
 
 	public override void _Ready()
 	{
@@ -157,12 +229,24 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 
 		CurrentHealth = _statsManager.MaxHealth;
 		CurrentStamina = _statsManager.MaxStamina;
+		_walkSpeedReference = _statsManager.MoveSpeed;
+		if (_walkSpeedReference <= 0f)
+		{
+			_walkSpeedReference = 100f;
+		}
 
 		_bodyNode = GetNodeOrNull<Node2D>("Body");
 		_bodySprite = _bodyNode?.GetNodeOrNull<AnimatedSprite2D>("AnimatedSprite2D");
+		_heldSprite = _bodyNode?.GetNodeOrNull<Sprite2D>("Held");
 		_legsNode = GetNodeOrNull<Node2D>("Legs");
 		_weaponManager = GetNodeOrNull<WeaponManager>("WeaponManager");
 		_legsSprite = _legsNode?.GetNodeOrNull<AnimatedSprite2D>("AnimatedSprite2D");
+		_bodyScaleNode = _bodySprite ?? _bodyNode;
+
+		CacheBodyWalkBaseSpeeds();
+		EnsureDefaultHeldAnchors();
+		BuildHeldAnchorLookup();
+		CacheBodyBaseScaleAndSize();
 
 		if (_bodySprite is not null)
 		{
@@ -171,16 +255,11 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 			var frames = _bodySprite.SpriteFrames;
 			if (frames is not null)
 			{
-				// Set non-automatic attack animations to not loop (they play once per shot)
-				// Automatic weapon animations (uzi) stay looping for continuous fire
-				SetAnimationNoLoop(frames, "attack_shotgun");
-				SetAnimationNoLoop(frames, "attack_pistol");
-				SetAnimationNoLoop(frames, "attack_bat");
-				// attack_uzi stays looping for continuous automatic fire
-				SetAnimationNoLoop(frames, "kick");
+				// Now handled by WeaponData.AttackAnimationLoops
 			}
 
-			_bodySprite.Play("walk");
+			var idleAnim = _bodySprite.SpriteFrames?.HasAnimation("mod_walk") == true ? "mod_walk" : "walk";
+			_bodySprite.Play(idleAnim);
 		}
 
 		_legsSprite?.Play("walk");
@@ -189,16 +268,9 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		if (_weaponManager is not null)
 		{
 			_weaponManager.WeaponChanged += OnWeaponChanged;
+			_weaponManager.WeaponFired += OnWeaponFired;
 			// Initialize animations for starting weapon
 			OnWeaponChanged(_weaponManager.CurrentWeapon);
-		}
-	}
-
-	private static void SetAnimationNoLoop(SpriteFrames frames, string animName)
-	{
-		if (frames.HasAnimation(animName))
-		{
-			frames.SetAnimationLoop(animName, false);
 		}
 	}
 
@@ -206,22 +278,73 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 	{
 		if (weapon is null)
 		{
-			_currentWalkAnim = "walk";
-			_currentAttackAnim = "attack_pistol";
-			_currentAttackFrameCount = 3;
+			_currentWalkAnim = "mod_walk";
+			_currentAttackAnim = string.Empty;
+			_currentAttackFrameCount = 0;
+			_baseAttackAnimSpeed = 0f;
 			CursorManager.Instance?.SetWeaponEquipped(false);
+			if (_heldSprite is not null)
+			{
+				_heldSprite.Texture = null;
+				_heldSprite.Visible = false;
+			}
+			_heldRecoilOffset = Vector2.Zero;
+			_heldWiggleOffset = Vector2.Zero;
 			return;
 		}
 
 		_currentWalkAnim = weapon.GetWalkAnimation();
 		_currentAttackAnim = weapon.GetAttackAnimation();
 
-		// Cache attack animation frame count for speed calculations
-		if (_bodySprite?.SpriteFrames is SpriteFrames frames && frames.HasAnimation(_currentAttackAnim))
+		// Set held weapon sprite
+		if (_heldSprite is not null)
 		{
-			_currentAttackFrameCount = frames.GetFrameCount(_currentAttackAnim);
-			_baseAttackAnimSpeed = (float)frames.GetAnimationSpeed(_currentAttackAnim);
-			GD.Print($"PlayerController: Attack anim '{_currentAttackAnim}' has {_currentAttackFrameCount} frames at base speed {_baseAttackAnimSpeed}");
+			_heldSprite.Texture = weapon.HeldSprite;
+			_heldSprite.Visible = weapon.HeldSprite is not null;
+			if (weapon.HeldSprite is null)
+			{
+				GD.PrintErr($"PlayerController: Weapon '{weapon.DisplayName}' has no HeldSprite assigned.");
+			}
+		}
+
+		if (_bodySprite?.SpriteFrames is SpriteFrames frames)
+		{
+			if (!frames.HasAnimation(_currentWalkAnim))
+			{
+				var fallbackWalk = frames.HasAnimation("mod_walk") ? "mod_walk" : "walk";
+				if (frames.HasAnimation(fallbackWalk))
+				{
+					GD.PrintErr($"PlayerController: Walk animation '{_currentWalkAnim}' not found for {weapon.DisplayName}; using '{fallbackWalk}'.");
+					_currentWalkAnim = fallbackWalk;
+				}
+				else
+				{
+					GD.PrintErr($"PlayerController: Walk animation '{_currentWalkAnim}' not found for {weapon.DisplayName} and no fallback is available.");
+				}
+			}
+
+			// Cache attack animation frame count for speed calculations
+			_currentAttackFrameCount = 0;
+			_baseAttackAnimSpeed = 0f;
+			if (!string.IsNullOrEmpty(_currentAttackAnim) && frames.HasAnimation(_currentAttackAnim))
+			{
+				_currentAttackFrameCount = frames.GetFrameCount(_currentAttackAnim);
+				_baseAttackAnimSpeed = (float)frames.GetAnimationSpeed(_currentAttackAnim);
+				frames.SetAnimationLoop(_currentAttackAnim, weapon.AttackAnimationLoops);
+				GD.Print($"PlayerController: Attack anim '{_currentAttackAnim}' has {_currentAttackFrameCount} frames at base speed {_baseAttackAnimSpeed}");
+			}
+			else if (!string.IsNullOrEmpty(_currentAttackAnim))
+			{
+				// Attack animation not found - weapon uses held sprite visual feedback only
+				GD.Print($"PlayerController: No body attack animation for {weapon.DisplayName} (using held sprite visuals).");
+				_currentAttackAnim = string.Empty;
+			}
+
+			// Set walk animation looping
+			if (frames.HasAnimation(_currentWalkAnim))
+			{
+				frames.SetAnimationLoop(_currentWalkAnim, weapon.WalkAnimationLoops);
+			}
 		}
 
 		GD.Print($"PlayerController: Weapon changed to {weapon.DisplayName}, walk={_currentWalkAnim}, attack={_currentAttackAnim}");
@@ -233,6 +356,18 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		}
 
 		CursorManager.Instance?.SetWeaponEquipped(true);
+		ApplyHeldAnchorForAnimation(_bodySprite?.Animation.ToString() ?? _currentWalkAnim);
+	}
+
+	private void OnWeaponFired(WeaponData weapon)
+	{
+		if (weapon.IsMelee)
+		{
+			return;
+		}
+
+		_heldRecoilOffset.X = Mathf.Max(_heldRecoilOffset.X - HeldRecoilKick, -HeldRecoilMax);
+		ApplyBodyFireScaleKick();
 	}
 
 	public override void _Process(double delta)
@@ -240,9 +375,12 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		// Disable all player actions when inventory is open
 		if (CursorManager.Instance?.IsInventoryOpen == true)
 		{
+			_currentMoveSpeed = 0f;
 			UpdateAimDownSightsState(true);
 			UpdateHitFlash((float)delta);
 			UpdateStamina((float)delta);
+			UpdateHeldItemOffset((float)delta);
+			UpdateBodyScale((float)delta);
 			return;
 		}
 
@@ -255,6 +393,9 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		HandleKick();
 		UpdateKickDamage((float)delta);
 		UpdateBodyAnimation((float)delta);
+		UpdateHeldAnchorForCurrentAnimation();
+		UpdateHeldItemOffset((float)delta);
+		UpdateBodyScale((float)delta);
 		UpdateHitFlash((float)delta);
 		UpdateMeleeSwingOrigin();
 		UpdateStamina((float)delta);
@@ -321,6 +462,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		// Disable movement when inventory is open
 		if (CursorManager.Instance?.IsInventoryOpen == true)
 		{
+			_currentMoveSpeed = 0f;
 			Velocity = _knockbackVelocity;
 			MoveAndSlide();
 			ApplyKnockbackDamp((float)delta);
@@ -363,6 +505,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		}
 
 		var moveSpeed = _statsManager?.MoveSpeed ?? 200f;
+		_currentMoveSpeed = _isMoving ? moveSpeed * speedMultiplier : 0f;
 		Velocity = (inputDir * moveSpeed * speedMultiplier) + _knockbackVelocity;
 		MoveAndSlide();
 
@@ -453,6 +596,8 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 
 		_bodyNode.Rotation = newAngle;
 		_aimDirection = new Vector2(Mathf.Cos(newAngle), Mathf.Sin(newAngle));
+
+		UpdateHeldSpriteRotation();
 	}
 
 	private void UpdateAimDownSightsState(bool forceDisable = false)
@@ -492,7 +637,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 			shouldFire = Input.IsActionPressed("Fire");
 
 			// Stop attack animation if out of ammo while holding fire
-			if (_weaponManager.CurrentAmmo <= 0 && _attackPlaying && _bodySprite?.Animation == _currentAttackAnim)
+			if (_weaponManager.CurrentAmmo <= 0 && _attackPlaying && !string.IsNullOrEmpty(_currentAttackAnim) && _bodySprite?.Animation == _currentAttackAnim)
 			{
 				_attackPlaying = false;
 				_weaponWalkTimer = WeaponWalkDuration;
@@ -500,7 +645,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 			}
 
 			// Handle releasing fire button on automatic weapon
-			if (!shouldFire && _attackPlaying && _bodySprite?.Animation == _currentAttackAnim)
+			if (!shouldFire && _attackPlaying && !string.IsNullOrEmpty(_currentAttackAnim) && _bodySprite?.Animation == _currentAttackAnim)
 			{
 				// Stop automatic fire animation and return to walk
 				_attackPlaying = false;
@@ -545,17 +690,31 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 
 	private void HandleWeaponSwitch()
 	{
-		if (_kickPlaying || _attackPlaying)
-		{
-			return;
-		}
-
 		if (!Input.IsActionJustPressed("SwitchHeld"))
 		{
 			return;
 		}
 
-		_weaponManager?.CycleWeapon();
+		if (_kickPlaying || _attackPlaying)
+		{
+			GD.Print($"PlayerController: SwitchHeld blocked (kick={_kickPlaying}, attack={_attackPlaying}).");
+			return;
+		}
+
+		if (_weaponManager is null)
+		{
+			GD.PrintErr("PlayerController: SwitchHeld pressed but WeaponManager is missing.");
+			return;
+		}
+
+		var weaponCount = _weaponManager.GetWeapons().Count;
+		if (weaponCount <= 1)
+		{
+			GD.Print($"PlayerController: SwitchHeld pressed but only {weaponCount} weapon(s) equipped.");
+			return;
+		}
+
+		_weaponManager.CycleWeapon();
 	}
 
 	private void HandleReload()
@@ -738,7 +897,13 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		}
 
 		var weapon = _weaponManager?.CurrentWeapon;
-		if (weapon is null || _currentAttackFrameCount <= 0)
+		if (weapon is null)
+		{
+			return;
+		}
+
+		// If no attack animation exists, weapon uses held sprite visuals only
+		if (string.IsNullOrEmpty(_currentAttackAnim) || _currentAttackFrameCount <= 0)
 		{
 			return;
 		}
@@ -821,7 +986,8 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 	private static bool IsAttackAnimation(StringName animation)
 	{
 		var name = animation.ToString();
-		return name.StartsWith("attack_", System.StringComparison.Ordinal);
+		return name.StartsWith("attack_", System.StringComparison.Ordinal)
+			|| name.StartsWith("mod_attack", System.StringComparison.Ordinal);
 	}
 
 	private void UpdateBodyAnimation(float delta)
@@ -834,9 +1000,24 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		// Don't interfere with kick animation
 		if (_kickPlaying)
 		{
+			// Hide held sprite during kick animation
+			if (_heldSprite is not null)
+			{
+				_heldSprite.Visible = false;
+			}
 			return;
 		}
 
+		UpdateBodyWalkAnimationSpeed();
+
+		// Show held sprite if there's a weapon (and it has a held sprite texture)
+		var weapon = _weaponManager?.CurrentWeapon;
+		if (_heldSprite is not null && weapon is not null)
+		{
+			_heldSprite.Visible = weapon.HeldSprite is not null;
+		}
+
+		// Update body animation (walk/idle)
 		if (_weaponWalkTimer > 0f)
 		{
 			_weaponWalkTimer -= delta;
@@ -850,14 +1031,292 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 			_bodySprite.Play(_currentWalkAnim);
 		}
 
-		// Pause walk animation when not moving
-		if (!_isMoving && !_attackPlaying && IsWalkAnimation(_bodySprite.Animation))
+		// Pause or play walk animation based on movement and looping preference
+		bool shouldLoopWalk = weapon?.WalkAnimationLoops ?? true;
+		if (!_isMoving && !_attackPlaying && IsWalkAnimation(_bodySprite.Animation) && !shouldLoopWalk)
 		{
 			_bodySprite.Stop();
 		}
-		else if (_isMoving && !_attackPlaying)
+		else if (_isMoving && !_attackPlaying && !shouldLoopWalk)
 		{
 			_bodySprite.Play();
+		}
+	}
+
+	private void CacheBodyWalkBaseSpeeds()
+	{
+		_bodyWalkBaseSpeeds.Clear();
+		if (_bodySprite?.SpriteFrames is not SpriteFrames frames)
+		{
+			return;
+		}
+
+		foreach (var animationName in frames.GetAnimationNames())
+		{
+			if (!IsModWalkAnimation(animationName))
+			{
+				continue;
+			}
+
+			var name = animationName.ToString();
+			_bodyWalkBaseSpeeds[name] = (float)frames.GetAnimationSpeed(animationName);
+		}
+	}
+
+	private void UpdateBodyWalkAnimationSpeed()
+	{
+		if (_bodySprite?.SpriteFrames is not SpriteFrames frames)
+		{
+			return;
+		}
+
+		var animation = _bodySprite.Animation;
+		if (!IsModWalkAnimation(animation))
+		{
+			return;
+		}
+
+		var name = animation.ToString();
+		if (!_bodyWalkBaseSpeeds.TryGetValue(name, out var baseSpeed))
+		{
+			baseSpeed = (float)frames.GetAnimationSpeed(animation);
+			_bodyWalkBaseSpeeds[name] = baseSpeed;
+		}
+
+		if (_walkSpeedReference <= 0f)
+		{
+			return;
+		}
+
+		var speedScale = Mathf.Max(_currentMoveSpeed / _walkSpeedReference, 0f);
+		frames.SetAnimationSpeed(animation, baseSpeed * speedScale);
+	}
+
+	private void BuildHeldAnchorLookup()
+	{
+		_heldAnchorLookup.Clear();
+		foreach (var anchor in HeldAnimationAnchors)
+		{
+			if (anchor is null)
+			{
+				continue;
+			}
+
+			var name = anchor.AnimationName?.Trim();
+			if (string.IsNullOrEmpty(name))
+			{
+				continue;
+			}
+
+			_heldAnchorLookup[name] = anchor;
+		}
+	}
+
+	private void EnsureDefaultHeldAnchors()
+	{
+		if (HeldAnimationAnchors.Count > 0)
+		{
+			return;
+		}
+
+		HeldAnimationAnchors.Add(new HeldAnimationAnchor
+		{
+			AnimationName = "mod_walk_ranged_1h",
+			Offset = new Vector2(6f, 0f),
+			RotationDegrees = 0f
+		});
+		HeldAnimationAnchors.Add(new HeldAnimationAnchor
+		{
+			AnimationName = "mod_walk_ranged_2h",
+			Offset = new Vector2(6f, 0f),
+			RotationDegrees = 0f
+		});
+		HeldAnimationAnchors.Add(new HeldAnimationAnchor
+		{
+			AnimationName = "mod_walk_melee_2h",
+			Offset = new Vector2(6f, 0f),
+			RotationDegrees = 0f
+		});
+		HeldAnimationAnchors.Add(new HeldAnimationAnchor
+		{
+			AnimationName = "mod_attack_melee_2h",
+			Offset = new Vector2(6f, 0f),
+			RotationDegrees = 0f
+		});
+	}
+
+	private void UpdateHeldAnchorForCurrentAnimation()
+	{
+		if (_bodySprite is null || _heldSprite is null || !_heldSprite.Visible || _kickPlaying)
+		{
+			return;
+		}
+
+		var animation = _bodySprite.Animation.ToString();
+		if (animation == _lastHeldAnimation)
+		{
+			return;
+		}
+
+		ApplyHeldAnchorForAnimation(animation);
+	}
+
+	private void ApplyHeldAnchorForAnimation(string animationName)
+	{
+		if (_heldSprite is null)
+		{
+			return;
+		}
+
+		_lastHeldAnimation = animationName ?? string.Empty;
+
+		var weapon = _weaponManager?.CurrentWeapon;
+		var baseOffset = weapon?.HoldOffset ?? Vector2.Zero;
+		_heldBaseRotationRad = 0f;
+
+		if (!string.IsNullOrEmpty(animationName) && _heldAnchorLookup.TryGetValue(animationName, out var anchor))
+		{
+			baseOffset = anchor.Offset;
+			_heldBaseRotationRad = Mathf.DegToRad(anchor.RotationDegrees);
+		}
+		else if (!string.IsNullOrEmpty(animationName) && _missingHeldAnchors.Add(animationName))
+		{
+			GD.PrintErr($"PlayerController: Missing held anchor for animation '{animationName}'. Using weapon HoldOffset.");
+		}
+
+		_heldBaseOffset = baseOffset;
+		UpdateHeldSpritePosition();
+		UpdateHeldSpriteRotation();
+	}
+
+	private void UpdateHeldSpriteRotation()
+	{
+		if (_heldSprite is null)
+		{
+			return;
+		}
+
+		if (_weaponManager?.CurrentWeapon?.SyncsWithBodyAnimation == false && _bodyNode is not null)
+		{
+			_heldSprite.Rotation = _heldBaseRotationRad - _bodyNode.Rotation;
+			return;
+		}
+
+		_heldSprite.Rotation = _heldBaseRotationRad;
+	}
+
+	private void UpdateHeldItemOffset(float delta)
+	{
+		if (_heldSprite is null || !_heldSprite.Visible || _kickPlaying)
+		{
+			return;
+		}
+
+		UpdateHeldWiggle(delta);
+		UpdateHeldRecoil(delta);
+		UpdateHeldSpritePosition();
+	}
+
+	private void UpdateHeldWiggle(float delta)
+	{
+		if (_currentMoveSpeed <= 0.01f || _walkSpeedReference <= 0f)
+		{
+			_heldWiggleOffset = Vector2.Zero;
+			return;
+		}
+
+		var speedScale = Mathf.Clamp(_currentMoveSpeed / _walkSpeedReference, 0f, 1.2f);
+		_heldWiggleTime += delta * HeldWiggleFrequency * Mathf.Tau * speedScale;
+		var amplitude = HeldWiggleAmplitude * speedScale;
+		_heldWiggleOffset = new Vector2(0f, Mathf.Sin(_heldWiggleTime) * amplitude);
+	}
+
+	private void UpdateHeldRecoil(float delta)
+	{
+		if (_heldRecoilOffset == Vector2.Zero)
+		{
+			return;
+		}
+
+		_heldRecoilOffset = _heldRecoilOffset.MoveToward(Vector2.Zero, HeldRecoilReturnSpeed * delta);
+	}
+
+	private void ApplyBodyFireScaleKick()
+	{
+		if (_bodyScaleNode is null || BodyFireScalePixels <= 0f)
+		{
+			if (_bodyScaleNode is null)
+			{
+				GD.PrintErr("PlayerController: Body recoil scale node is missing.");
+			}
+			return;
+		}
+
+		var size = _cachedBodySpriteSize > 0f ? _cachedBodySpriteSize : 32f;
+		var scaleKick = BodyFireScalePixels / size;
+		_bodyScaleVelocity += new Vector2(scaleKick, -scaleKick);
+		GD.Print($"PlayerController: Body recoil kick applied (pixels={BodyFireScalePixels:F2}, scaleKick={scaleKick:F4}).");
+	}
+
+	private void UpdateBodyScale(float delta)
+	{
+		if (_bodyScaleNode is null)
+		{
+			return;
+		}
+
+		if (_bodyScaleOffset == Vector2.Zero && _bodyScaleVelocity == Vector2.Zero)
+		{
+			_bodyScaleNode.Scale = _bodyBaseScale;
+			return;
+		}
+
+		var accel = (-_bodyScaleOffset * BodyFireScaleSpring) - (_bodyScaleVelocity * BodyFireScaleDamping);
+		_bodyScaleVelocity += accel * delta;
+		_bodyScaleOffset += _bodyScaleVelocity * delta;
+
+		_bodyScaleNode.Scale = _bodyBaseScale + _bodyScaleOffset;
+	}
+
+	private void UpdateHeldSpritePosition()
+	{
+		if (_heldSprite is null)
+		{
+			return;
+		}
+
+		_heldSprite.Position = _heldBaseOffset + _heldWiggleOffset + _heldRecoilOffset;
+	}
+
+	private void CacheBodyBaseScaleAndSize()
+	{
+		if (_bodyScaleNode is not null)
+		{
+			_bodyBaseScale = _bodyScaleNode.Scale;
+		}
+
+		var frames = _bodySprite?.SpriteFrames;
+		if (frames is null || _bodySprite is null)
+		{
+			return;
+		}
+
+		var anim = _bodySprite.Animation;
+		if (!frames.HasAnimation(anim))
+		{
+			return;
+		}
+
+		var texture = frames.GetFrameTexture(anim, 0);
+		if (texture is null)
+		{
+			return;
+		}
+
+		var size = texture.GetSize();
+		if (size.Y > 0f)
+		{
+			_cachedBodySpriteSize = size.Y;
 		}
 	}
 
@@ -868,7 +1327,15 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 	private static bool IsWalkAnimation(StringName animation)
 	{
 		var name = animation.ToString();
-		return name == "walk" || name.StartsWith("walk_", System.StringComparison.Ordinal);
+		return name == "walk"
+			|| name.StartsWith("walk_", System.StringComparison.Ordinal)
+			|| name.StartsWith("mod_walk", System.StringComparison.Ordinal);
+	}
+
+	private static bool IsModWalkAnimation(StringName animation)
+	{
+		var name = animation.ToString();
+		return name.StartsWith("mod_walk", System.StringComparison.Ordinal);
 	}
 
 	private void UpdateLegsFacing(Vector2 inputDir)
