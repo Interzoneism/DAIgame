@@ -1,8 +1,11 @@
 namespace DAIgame.Core.Items;
 
+using System;
 using System.Collections.Generic;
+using System.IO;
 using DAIgame.Combat;
 using Godot;
+using Godot.Collections;
 
 /// <summary>
 /// Static database for item definitions and factory methods.
@@ -10,12 +13,6 @@ using Godot;
 /// </summary>
 public static class ItemDatabase
 {
-    // Weapon resource paths
-    private const string WeaponPathPistol = "res://data/weapons/pistol.tres";
-    private const string WeaponPathShotgun = "res://data/weapons/shotgun.tres";
-    private const string WeaponPathUzi = "res://data/weapons/uzi.tres";
-    private const string WeaponPathBat = "res://data/weapons/bat.tres";
-
     // Icon paths - weapons
     private const string IconPathPistol = "res://assets/sprites/icon_pistol.png";
     private const string IconPathShotgun = "res://assets/sprites/icon_shotgun.png";
@@ -32,16 +29,16 @@ public static class ItemDatabase
     private const string IconPathPants = "res://assets/sprites/items/pants.png";
 
     // Weapon definitions
-    private static readonly Dictionary<string, (string resourcePath, string iconPath)> WeaponDefinitions = new()
+    private static readonly System.Collections.Generic.Dictionary<string, string> WeaponIconDefinitions = new()
     {
-        { "pistol", (WeaponPathPistol, IconPathPistol) },
-        { "shotgun", (WeaponPathShotgun, IconPathShotgun) },
-        { "uzi", (WeaponPathUzi, IconPathUzi) },
-        { "bat", (WeaponPathBat, IconPathBat) }
+        { "pistol", IconPathPistol },
+        { "shotgun", IconPathShotgun },
+        { "uzi", IconPathUzi },
+        { "bat", IconPathBat }
     };
 
     // Ammo definitions
-    private static readonly Dictionary<AmmoType, string> AmmoIconPaths = new()
+    private static readonly System.Collections.Generic.Dictionary<AmmoType, string> AmmoIconPaths = new()
     {
         { AmmoType.Small, IconPathAmmoSmall },
         { AmmoType.Rifle, IconPathAmmoRifle },
@@ -49,8 +46,8 @@ public static class ItemDatabase
     };
 
     // Cache for loaded resources
-    private static readonly Dictionary<string, WeaponData> LoadedWeapons = [];
-    private static readonly Dictionary<string, Texture2D> LoadedIcons = [];
+    private static readonly System.Collections.Generic.Dictionary<string, WeaponData> LoadedWeapons = [];
+    private static readonly System.Collections.Generic.Dictionary<string, Texture2D> LoadedIcons = [];
 
     #region Weapon Creation
 
@@ -59,19 +56,19 @@ public static class ItemDatabase
     /// </summary>
     public static WeaponItem? CreateWeapon(string weaponId)
     {
-        if (!WeaponDefinitions.TryGetValue(weaponId, out var def))
+        if (!WeaponIconDefinitions.TryGetValue(weaponId, out var iconPath))
         {
             GD.PrintErr($"ItemDatabase: Unknown weapon ID '{weaponId}'");
             return null;
         }
 
-        var weaponData = LoadWeaponData(def.resourcePath);
+        var weaponData = LoadWeaponData(weaponId);
         if (weaponData is null)
         {
             return null;
         }
 
-        var icon = LoadIcon(def.iconPath);
+        var icon = LoadIcon(iconPath);
         return WeaponItem.FromWeaponData(weaponData, icon);
     }
 
@@ -80,7 +77,7 @@ public static class ItemDatabase
     /// </summary>
     public static WeaponItem? CreateRandomWeapon()
     {
-        var weaponIds = new List<string>(WeaponDefinitions.Keys);
+        var weaponIds = new List<string>(WeaponIconDefinitions.Keys);
         var index = (int)(GD.Randi() % weaponIds.Count);
         return CreateWeapon(weaponIds[index]);
     }
@@ -92,9 +89,9 @@ public static class ItemDatabase
     {
         // Try to find icon for this weapon
         string? iconPath = null;
-        if (WeaponDefinitions.TryGetValue(weaponData.WeaponId, out var def))
+        if (WeaponIconDefinitions.TryGetValue(weaponData.WeaponId, out var path))
         {
-            iconPath = def.iconPath;
+            iconPath = path;
         }
 
         var icon = iconPath is not null ? LoadIcon(iconPath) : null;
@@ -104,7 +101,7 @@ public static class ItemDatabase
     /// <summary>
     /// Gets all available weapon IDs.
     /// </summary>
-    public static IEnumerable<string> GetAllWeaponIds() => WeaponDefinitions.Keys;
+    public static IEnumerable<string> GetAllWeaponIds() => WeaponIconDefinitions.Keys;
 
     #endregion
 
@@ -255,7 +252,7 @@ public static class ItemDatabase
     public static Item? CreateItem(string itemId, int count = 1)
     {
         // Check if it's a weapon
-        if (WeaponDefinitions.ContainsKey(itemId))
+        if (WeaponIconDefinitions.ContainsKey(itemId))
         {
             return CreateWeapon(itemId);
         }
@@ -318,22 +315,119 @@ public static class ItemDatabase
 
     #region Resource Loading
 
-    private static WeaponData? LoadWeaponData(string path)
+    private static WeaponData? LoadWeaponData(string weaponId)
     {
-        if (LoadedWeapons.TryGetValue(path, out var cached))
+        if (LoadedWeapons.TryGetValue(weaponId, out var cached))
         {
             // Clone to avoid shared state
             return cached.Clone();
         }
 
-        var weapon = ResourceLoader.Load<WeaponData>(path);
-        if (weapon is null)
+        var path = $"res://data/items/{weaponId}.json";
+        var globalPath = ProjectSettings.GlobalizePath(path);
+
+        if (!File.Exists(globalPath))
         {
-            GD.PrintErr($"ItemDatabase: Failed to load weapon at '{path}'");
+            GD.PrintErr($"ItemDatabase: Weapon JSON file not found at '{path}'");
             return null;
         }
 
-        LoadedWeapons[path] = weapon;
+        var jsonString = File.ReadAllText(globalPath);
+        var variant = Json.ParseString(jsonString);
+
+        if (variant.VariantType != Variant.Type.Dictionary)
+        {
+            GD.PrintErr($"ItemDatabase: Invalid JSON format for '{weaponId}'. Root should be a dictionary.");
+            return null;
+        }
+        
+        var data = variant.AsGodotDictionary();
+
+        var weapon = new WeaponData();
+
+        // Helper to get values from dictionary
+        T GetValue<[MustBeVariant] T>(string key, T defaultValue = default)
+        {
+            if (data.TryGetValue(key, out var v))
+            {
+                try
+                {
+                    if (typeof(T).IsEnum)
+                    {
+                        return (T)Enum.Parse(typeof(T), v.AsString(), true);
+                    }
+                    // More robust conversion
+                    return Variant.From(v).As<T>();
+                }
+                catch (Exception ex)
+                {
+                    GD.PrintErr($"ItemDatabase: Error converting '{key}' for '{weaponId}'. Using default. Error: {ex.Message}");
+                    return defaultValue;
+                }
+            }
+            return defaultValue;
+        }
+        
+        Vector2 GetVector2(string key)
+        {
+            if (data.TryGetValue(key, out var v) && v.VariantType == Variant.Type.Dictionary)
+            {
+                var dict = v.AsGodotDictionary();
+                return new Vector2(dict["x"].AsSingle(), dict["y"].AsSingle());
+            }
+            return Vector2.Zero;
+        }
+
+        weapon.DisplayName = GetValue<string>("DisplayName");
+        weapon.WeaponId = GetValue<string>("WeaponId");
+        weapon.Damage = GetValue<float>("Damage");
+        weapon.FireRate = GetValue<float>("FireRate");
+        weapon.PelletCount = GetValue<int>("PelletCount");
+        weapon.SpreadAngle = GetValue<float>("SpreadAngle");
+        weapon.FireMode = GetValue<WeaponFireMode>("FireMode");
+        weapon.KnockbackPlayer = GetValue<float>("KnockbackPlayer");
+        weapon.Knockback = GetValue<float>("Knockback");
+        weapon.Accuracy = GetValue<float>("Accuracy");
+        weapon.AimDownSightsAccuracyMultiplier = GetValue<float>("AimDownSightsAccuracyMultiplier");
+        weapon.Stability = GetValue<float>("Stability");
+        weapon.Recoil = GetValue<float>("Recoil");
+        weapon.RecoilRecovery = GetValue<float>("RecoilRecovery");
+        weapon.RecoilWarmup = GetValue<int>("RecoilWarmup");
+        weapon.AnimationSuffix = GetValue<string>("AnimationSuffix");
+        
+        weapon.HoldOffset = GetVector2("HoldOffset");
+
+        weapon.AttackAnimationLoops = GetValue<bool>("AttackAnimationLoops");
+        weapon.SyncsWithBodyAnimation = GetValue<bool>("SyncsWithBodyAnimation");
+        weapon.WalkAnimationLoops = GetValue<bool>("WalkAnimationLoops");
+        weapon.MaxAmmo = GetValue<int>("MaxAmmo");
+        weapon.MagazineSize = GetValue<int>("MagazineSize");
+        weapon.ReloadTime = GetValue<float>("ReloadTime");
+        weapon.ProjectileSpeed = GetValue<float>("ProjectileSpeed");
+        weapon.SpawnOffsetX = GetValue<float>("SpawnOffsetX");
+        weapon.SpawnOffsetY = GetValue<float>("SpawnOffsetY");
+        weapon.ReloadMode = GetValue<WeaponReloadMode>("ReloadMode");
+        weapon.AmmoType = GetValue<AmmoType>("AmmoType");
+        weapon.IsMelee = GetValue<bool>("IsMelee");
+        weapon.MeleeHitType = GetValue<MeleeHitType>("MeleeHitType");
+        weapon.MeleeRange = GetValue<float>("MeleeRange");
+        weapon.MeleeSpreadAngle = GetValue<float>("MeleeSpreadAngle");
+        weapon.SwingStartAngle = GetValue<float>("SwingStartAngle");
+        weapon.SwingEndAngle = GetValue<float>("SwingEndAngle");
+        weapon.DamageDelay = GetValue<float>("DamageDelay");
+        weapon.StaminaCost = GetValue<float>("StaminaCost");
+
+        var heldSpritePath = GetValue<string>("HeldSprite");
+        if (!string.IsNullOrEmpty(heldSpritePath))
+        {
+            weapon.HeldSprite = ResourceLoader.Load<Texture2D>(heldSpritePath);
+            if (weapon.HeldSprite is null)
+            {
+                GD.PrintErr($"ItemDatabase: Failed to load HeldSprite at '{heldSpritePath}' for '{weaponId}'");
+            }
+        }
+
+        LoadedWeapons[weaponId] = weapon;
         return weapon.Clone();
     }
 

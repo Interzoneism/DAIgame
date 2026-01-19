@@ -197,6 +197,42 @@ public partial class PlayerInventory : Node
             GD.PrintErr("PlayerInventory: Backpack full, could not add starter uzi.");
         }
 
+        var pistolItem = ItemDatabase.CreateWeapon("pistol");
+        if (pistolItem is null)
+        {
+            GD.PrintErr("PlayerInventory: Failed to create pistol weapon.");
+            return;
+        }
+
+        if (!AddItemToBackpack(pistolItem))
+        {
+            GD.PrintErr("PlayerInventory: Backpack full, could not add starter pistol.");
+        }
+
+        var shotgunItem = ItemDatabase.CreateWeapon("shotgun");
+        if (shotgunItem is null)
+        {
+            GD.PrintErr("PlayerInventory: Failed to create shotgun weapon.");
+            return;
+        }
+
+        if (!AddItemToBackpack(shotgunItem))
+        {
+            GD.PrintErr("PlayerInventory: Backpack full, could not add starter shotgun.");
+        }
+
+        var batItem = ItemDatabase.CreateWeapon("bat");
+        if (batItem is null)
+        {
+            GD.PrintErr("PlayerInventory: Failed to create bat weapon.");
+            return;
+        }
+
+        if (!AddItemToBackpack(batItem))
+        {
+            GD.PrintErr("PlayerInventory: Backpack full, could not add starter bat.");
+        }
+
         AddStarterAmmo(AmmoType.Small, 120);
         AddStarterAmmo(AmmoType.Rifle, 60);
         AddStarterAmmo(AmmoType.Shotgun, 30);

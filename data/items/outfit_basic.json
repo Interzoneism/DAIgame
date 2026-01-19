@@ -1,0 +1,11 @@
+{
+  "Id": "outfit_basic",
+  "DisplayName": "Basic Outfit",
+  "Type": "Wearable",
+  "Icon": "res://assets/sprites/items/clothes.png",
+  "Properties": {
+    "Slot": "Outfit",
+    "Armor": 5,
+    "ColdResistance": 10
+  }
+}

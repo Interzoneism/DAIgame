@@ -188,7 +188,7 @@ public partial class WeaponData : Resource
     /// Texture to use for the held weapon sprite.
     /// </summary>
     [Export]
-    public Texture2D HeldSprite { get; set; }
+    public Texture2D? HeldSprite { get; set; }
 
     /// <summary>
     /// Offset position for the held sprite relative to the player's body center.

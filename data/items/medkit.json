@@ -1,0 +1,11 @@
+{
+  "Id": "medkit",
+  "DisplayName": "Medkit",
+  "Type": "Usable",
+  "Icon": "",
+  "Properties": {
+    "Subtype": "Healing",
+    "HealAmount": 50,
+    "UseTime": 2.0
+  }
+}
