@@ -299,52 +299,52 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		// Set held weapon sprite
 		if (_heldSprite is not null)
 		{
-            _heldSprite.Texture = weapon.HeldSprite;
-            _heldSprite.Visible = weapon.HeldSprite is not null;
-            if (weapon.HeldSprite is null)
-            {
-                GD.PrintErr($"PlayerController: Weapon '{weapon.DisplayName}' has no HeldSprite assigned.");
-            }
-        }
+			_heldSprite.Texture = weapon.HeldSprite;
+			_heldSprite.Visible = weapon.HeldSprite is not null;
+			if (weapon.HeldSprite is null)
+			{
+				GD.PrintErr($"PlayerController: Weapon '{weapon.DisplayName}' has no HeldSprite assigned.");
+			}
+		}
 
-        if (_bodySprite?.SpriteFrames is SpriteFrames frames)
-        {
-            if (!frames.HasAnimation(_currentWalkAnim))
-            {
-                var fallbackWalk = frames.HasAnimation("mod_walk") ? "mod_walk" : "walk";
-                if (frames.HasAnimation(fallbackWalk))
-                {
-                    GD.PrintErr($"PlayerController: Walk animation '{_currentWalkAnim}' not found for {weapon.DisplayName}; using '{fallbackWalk}'.");
-                    _currentWalkAnim = fallbackWalk;
-                }
-                else
-                {
-                    GD.PrintErr($"PlayerController: Walk animation '{_currentWalkAnim}' not found for {weapon.DisplayName} and no fallback is available.");
-                }
-            }
+		if (_bodySprite?.SpriteFrames is SpriteFrames frames)
+		{
+			if (!frames.HasAnimation(_currentWalkAnim))
+			{
+				var fallbackWalk = frames.HasAnimation("mod_walk") ? "mod_walk" : "walk";
+				if (frames.HasAnimation(fallbackWalk))
+				{
+					GD.PrintErr($"PlayerController: Walk animation '{_currentWalkAnim}' not found for {weapon.DisplayName}; using '{fallbackWalk}'.");
+					_currentWalkAnim = fallbackWalk;
+				}
+				else
+				{
+					GD.PrintErr($"PlayerController: Walk animation '{_currentWalkAnim}' not found for {weapon.DisplayName} and no fallback is available.");
+				}
+			}
 
-            // Cache attack animation frame count for speed calculations
-            _currentAttackFrameCount = 0;
-            _baseAttackAnimSpeed = 0f;
-            if (!string.IsNullOrEmpty(_currentAttackAnim) && frames.HasAnimation(_currentAttackAnim))
-            {
-                _currentAttackFrameCount = frames.GetFrameCount(_currentAttackAnim);
-                _baseAttackAnimSpeed = (float)frames.GetAnimationSpeed(_currentAttackAnim);
-                frames.SetAnimationLoop(_currentAttackAnim, weapon.AttackAnimationLoops);
-                GD.Print($"PlayerController: Attack anim '{_currentAttackAnim}' has {_currentAttackFrameCount} frames at base speed {_baseAttackAnimSpeed}");
-            }
-            else if (!string.IsNullOrEmpty(_currentAttackAnim))
-            {
-                // Attack animation not found - weapon uses held sprite visual feedback only
-                GD.Print($"PlayerController: No body attack animation for {weapon.DisplayName} (using held sprite visuals).");
-                _currentAttackAnim = string.Empty;
-            }
+			// Cache attack animation frame count for speed calculations
+			_currentAttackFrameCount = 0;
+			_baseAttackAnimSpeed = 0f;
+			if (!string.IsNullOrEmpty(_currentAttackAnim) && frames.HasAnimation(_currentAttackAnim))
+			{
+				_currentAttackFrameCount = frames.GetFrameCount(_currentAttackAnim);
+				_baseAttackAnimSpeed = (float)frames.GetAnimationSpeed(_currentAttackAnim);
+				frames.SetAnimationLoop(_currentAttackAnim, weapon.AttackAnimationLoops);
+				GD.Print($"PlayerController: Attack anim '{_currentAttackAnim}' has {_currentAttackFrameCount} frames at base speed {_baseAttackAnimSpeed}");
+			}
+			else if (!string.IsNullOrEmpty(_currentAttackAnim))
+			{
+				// Attack animation not found - weapon uses held sprite visual feedback only
+				GD.Print($"PlayerController: No body attack animation for {weapon.DisplayName} (using held sprite visuals).");
+				_currentAttackAnim = string.Empty;
+			}
 
-            // Set walk animation looping
-            if (frames.HasAnimation(_currentWalkAnim))
-            {
-                frames.SetAnimationLoop(_currentWalkAnim, weapon.WalkAnimationLoops);
-            }
+			// Set walk animation looping
+			if (frames.HasAnimation(_currentWalkAnim))
+			{
+				frames.SetAnimationLoop(_currentWalkAnim, weapon.WalkAnimationLoops);
+			}
 			_bodySprite.Play(_currentWalkAnim);
 		}
 
