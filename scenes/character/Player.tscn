@@ -45,7 +45,7 @@ animation = &"walkL"
 [node name="WeaponManager" type="Node2D" parent="."]
 script = ExtResource("4_weapon")
 BulletScene = ExtResource("5_bullet")
-StartingWeapons = [null, null]
+StartingWeapons = []
 
 [node name="PlayerInventory" type="Node" parent="."]
 script = ExtResource("7_inventory")
