@@ -15,8 +15,14 @@
   "RecoilRecovery": 0.5,
   "RecoilWarmup": 0,
   "AnimationSuffix": "shotgun",
+  "WalkAnimationName": "mod_walk_ranged_2h",
+  "AttackAnimationName": "none",
   "HeldSprite": "res://assets/sprites/player/mod_weapon_shotgun.png",
-  "HoldOffset": { "x": 0, "y": 0 },
+  "HoldOffset": {
+    "x": -4,
+    "y": 0
+  },
+  "HeldRotationOffset": 0,
   "AttackAnimationLoops": false,
   "SyncsWithBodyAnimation": true,
   "WalkAnimationLoops": true,

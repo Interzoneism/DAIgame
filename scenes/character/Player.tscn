@@ -33,7 +33,6 @@ animation = &"kick"
 
 [node name="Held" type="Sprite2D" parent="Body"]
 centered = false
-offset = Vector2(3.745, -5.085)
 
 [node name="Legs" type="Node2D" parent="."]
 

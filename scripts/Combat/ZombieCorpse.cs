@@ -9,6 +9,8 @@ public partial class ZombieCorpse : CharacterBody2D
 {
 	private const float Friction = 600f; // pixels/sec^2
 	private const float SettleThreshold = 5f; // velocity below this converts to static
+	private static readonly RandomNumberGenerator CorpseRng = new();
+	private static bool _corpseRngSeeded;
 	private AnimatedSprite2D? _sprite;
 	private bool _hasSettled;
 
@@ -35,8 +37,10 @@ public partial class ZombieCorpse : CharacterBody2D
                 var frameCount = _sprite.SpriteFrames.GetFrameCount("corpse");
                 if (frameCount > 0)
                 {
-                    _sprite.Frame = (int)GD.Randi() % frameCount;
+                    var frameIndex = GetRandomCorpseFrame(frameCount);
+                    _sprite.Frame = frameIndex;
                     _sprite.Pause();
+                    GD.Print($"ZombieCorpse: Selected corpse frame {frameIndex} of {frameCount}.");
                 }
 
                 // Set CapsuleShape2D to match sprite frame size
@@ -113,5 +117,16 @@ public partial class ZombieCorpse : CharacterBody2D
 
         // Remove this physics body
         QueueFree();
+    }
+
+    private static int GetRandomCorpseFrame(int frameCount)
+    {
+        if (!_corpseRngSeeded)
+        {
+            CorpseRng.Randomize();
+            _corpseRngSeeded = true;
+        }
+
+        return (int)CorpseRng.RandiRange(0, frameCount - 1);
     }
 }

@@ -1,5 +1,7 @@
 namespace DAIgame.Combat;
 
+using System;
+using System.Collections.Generic;
 using Godot;
 
 /// <summary>
@@ -59,6 +61,43 @@ public enum AmmoType
     Small,
     Rifle,
     Shotgun
+}
+
+/// <summary>
+/// Keyframe data for held weapon sprite during attack animations.
+/// </summary>
+public partial class WeaponHeldKeyframe
+{
+    /// <summary>
+    /// Normalized time within the body attack animation (0 to 1).
+    /// </summary>
+    public float Time { get; set; }
+
+    /// <summary>
+    /// Position offset relative to HoldOffset.
+    /// </summary>
+    public Vector2 Position { get; set; } = Vector2.Zero;
+
+    /// <summary>
+    /// Scale multiplier for the held sprite.
+    /// </summary>
+    public Vector2 Scale { get; set; } = Vector2.One;
+
+    /// <summary>
+    /// Rotation in degrees for the held sprite (local space, sprite faces right at 0).
+    /// </summary>
+    public float RotationDegrees { get; set; }
+
+    public WeaponHeldKeyframe Clone()
+    {
+        return new WeaponHeldKeyframe
+        {
+            Time = Time,
+            Position = Position,
+            Scale = Scale,
+            RotationDegrees = RotationDegrees
+        };
+    }
 }
 
 /// <summary>
@@ -195,6 +234,17 @@ public partial class WeaponData : Resource
     /// </summary>
     [Export]
     public Vector2 HoldOffset { get; set; } = Vector2.Zero;
+
+    /// <summary>
+    /// Base rotation offset in degrees applied to the held sprite.
+    /// </summary>
+    [Export]
+    public float HeldRotationOffset { get; set; }
+
+    /// <summary>
+    /// Optional keyframes for the held weapon sprite during attack animations.
+    /// </summary>
+    public List<WeaponHeldKeyframe> HeldAttackKeyframes { get; set; } = [];
 
     /// <summary>
     /// If true, the attack animation will loop (for automatic weapons).
@@ -343,6 +393,8 @@ public partial class WeaponData : Resource
             AttackAnimationName = AttackAnimationName,
             HeldSprite = HeldSprite,
             HoldOffset = HoldOffset,
+            HeldRotationOffset = HeldRotationOffset,
+            HeldAttackKeyframes = CloneKeyframes(HeldAttackKeyframes),
             AttackAnimationLoops = AttackAnimationLoops,
             SyncsWithBodyAnimation = SyncsWithBodyAnimation,
             WalkAnimationLoops = WalkAnimationLoops,
@@ -365,6 +417,23 @@ public partial class WeaponData : Resource
         };
     }
 
+    private static List<WeaponHeldKeyframe> CloneKeyframes(
+        List<WeaponHeldKeyframe> keyframes)
+    {
+        var clone = new List<WeaponHeldKeyframe>(keyframes.Count);
+        foreach (var frame in keyframes)
+        {
+            if (frame is null)
+            {
+                continue;
+            }
+
+            clone.Add(frame.Clone());
+        }
+
+        return clone;
+    }
+
     /// <summary>
     /// Gets the walk animation name for this weapon.
     /// </summary>
@@ -375,5 +444,14 @@ public partial class WeaponData : Resource
     /// Gets the attack animation name for this weapon.
     /// </summary>
     public string GetAttackAnimation()
-        => !string.IsNullOrWhiteSpace(AttackAnimationName) ? AttackAnimationName : $"attack_{AnimationSuffix}";
+    {
+        if (string.IsNullOrWhiteSpace(AttackAnimationName))
+        {
+            return $"attack_{AnimationSuffix}";
+        }
+
+        return AttackAnimationName.Trim().Equals("none", StringComparison.OrdinalIgnoreCase)
+            ? string.Empty
+            : AttackAnimationName;
+    }
 }

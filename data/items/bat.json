@@ -2,7 +2,7 @@
   "DisplayName": "Bat",
   "WeaponId": "bat",
   "Damage": 50,
-  "FireRate": 1.2,
+  "FireRate": 1.5,
   "PelletCount": 0,
   "SpreadAngle": 0,
   "FireMode": "SemiAuto",
@@ -15,8 +15,52 @@
   "RecoilRecovery": 0,
   "RecoilWarmup": 0,
   "AnimationSuffix": "bat",
+  "WalkAnimationName": "mod_walk_melee_2h",
+  "AttackAnimationName": "mod_attack_melee_2h",
   "HeldSprite": "res://assets/sprites/player/mod_weapon_bat.png",
-  "HoldOffset": { "x": 0, "y": 0 },
+  "HoldOffset": {
+    "x": 0,
+    "y": 0
+  },
+  "HeldRotationOffset": 120,
+  "HeldAttackKeyframes": [
+    {
+      "Time": 0.0,
+      "Position": {
+        "x": 0,
+        "y": 0
+      },
+      "Rotation": 0,
+      "Scale": {
+        "x": 1,
+        "y": 1
+      }
+    },
+    {
+      "Time": 0.3,
+      "Position": {
+        "x": 0,
+        "y": 0
+      },
+      "Rotation": -20,
+      "Scale": {
+        "x": 1,
+        "y": 1
+      }
+    },
+    {
+      "Time": 1.0,
+      "Position": {
+        "x": 0,
+        "y": 0
+      },
+      "Rotation": -190,
+      "Scale": {
+        "x": 1,
+        "y": 1
+      }
+    }
+  ],
   "AttackAnimationLoops": false,
   "SyncsWithBodyAnimation": true,
   "WalkAnimationLoops": true,

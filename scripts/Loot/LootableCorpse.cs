@@ -19,6 +19,8 @@ public partial class LootableCorpse : CharacterBody2D, ILootable, IInteractable
     private const float HighlightMaxAlpha = 0.8f;
     private const int LootSlots = 4;
     private static readonly StringName HighlightColorParam = new("highlight_color");
+    private static readonly RandomNumberGenerator CorpseRng = new();
+    private static bool _corpseRngSeeded;
 
     /// <summary>
     /// Display name shown in the loot UI.
@@ -101,8 +103,10 @@ public partial class LootableCorpse : CharacterBody2D, ILootable, IInteractable
                 var frameCount = _sprite.SpriteFrames.GetFrameCount("corpse");
                 if (frameCount > 0)
                 {
-                    _sprite.Frame = (int)GD.Randi() % frameCount;
+                    var frameIndex = GetRandomCorpseFrame(frameCount);
+                    _sprite.Frame = frameIndex;
                     _sprite.Pause();
+                    GD.Print($"LootableCorpse: Selected corpse frame {frameIndex} of {frameCount}.");
                 }
 
                 var frameTexture = _sprite.SpriteFrames.GetFrameTexture("corpse", 0);
@@ -217,6 +221,17 @@ public partial class LootableCorpse : CharacterBody2D, ILootable, IInteractable
     {
         _hasSettled = true;
         SetPhysicsProcess(false);
+    }
+
+    private static int GetRandomCorpseFrame(int frameCount)
+    {
+        if (!_corpseRngSeeded)
+        {
+            CorpseRng.Randomize();
+            _corpseRngSeeded = true;
+        }
+
+        return (int)CorpseRng.RandiRange(0, frameCount - 1);
     }
 
     public IReadOnlyList<Item?> GetItems() => _items;

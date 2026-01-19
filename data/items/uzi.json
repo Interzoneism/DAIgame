@@ -15,8 +15,14 @@
   "RecoilRecovery": 0.1,
   "RecoilWarmup": 3,
   "AnimationSuffix": "uzi",
+  "WalkAnimationName": "mod_walk_ranged_1h",
+  "AttackAnimationName": "none",
   "HeldSprite": "res://assets/sprites/player/mod_weapon_uzi.png",
-  "HoldOffset": { "x": 0, "y": 0 },
+  "HoldOffset": {
+    "x": 4,
+    "y": -8
+  },
+  "HeldRotationOffset": 0,
   "AttackAnimationLoops": true,
   "SyncsWithBodyAnimation": true,
   "WalkAnimationLoops": true,

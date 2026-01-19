@@ -1,6 +1,10 @@
 namespace DAIgame.UI;
 
+using System.Globalization;
+using System.IO;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using DAIgame.Combat;
 using DAIgame.Core;
 using DAIgame.Player;
@@ -20,12 +24,17 @@ public partial class GameHUD : CanvasLayer
     private Label? _timeLabel;
     private Label? _slowMoLabel;
     private Label? _debugStatsLabel;
+    private PanelContainer? _debugVariablesPanel;
+    private LineEdit? _holdOffsetXInput;
+    private LineEdit? _holdOffsetYInput;
+    private Button? _debugSaveButton;
     private PlayerController? _player;
     private PlayerStatsManager? _statsManager;
     private bool _debugMode;
     private bool _debugDirty = true;
     private float _lastDisplayedAccuracy = -1f;
     private float _lastDisplayedRecoilPenalty = -1f;
+    private bool _suppressDebugInputEvents;
 
     // Weapon HUD elements
     private VBoxContainer? _weaponContainer;
@@ -176,6 +185,9 @@ public partial class GameHUD : CanvasLayer
 
         // Weapon HUD (bottom right)
         CreateWeaponHUD();
+
+        // Debug variables window (top right)
+        CreateDebugVariablesPanel();
     }
 
     private void CreateWeaponHUD()
@@ -259,6 +271,56 @@ public partial class GameHUD : CanvasLayer
             HorizontalAlignment = HorizontalAlignment.Center
         };
         margin.AddChild(_interactionLabel);
+    }
+
+    private void CreateDebugVariablesPanel()
+    {
+        _debugVariablesPanel = new PanelContainer
+        {
+            AnchorLeft = 1f,
+            AnchorTop = 0f,
+            AnchorRight = 1f,
+            AnchorBottom = 0f,
+            OffsetLeft = -260f,
+            OffsetTop = 10f,
+            OffsetRight = -10f,
+            OffsetBottom = 170f,
+            Visible = false
+        };
+        AddChild(_debugVariablesPanel);
+
+        var margin = new MarginContainer();
+        margin.AddThemeConstantOverride("margin_left", 10);
+        margin.AddThemeConstantOverride("margin_right", 10);
+        margin.AddThemeConstantOverride("margin_top", 8);
+        margin.AddThemeConstantOverride("margin_bottom", 8);
+        _debugVariablesPanel.AddChild(margin);
+
+        var layout = new VBoxContainer();
+        margin.AddChild(layout);
+
+        var title = new Label { Text = "DEBUG VARIABLES" };
+        layout.AddChild(title);
+
+        var holdLabel = new Label { Text = "HoldOffset" };
+        layout.AddChild(holdLabel);
+
+        var holdRow = new HBoxContainer();
+        layout.AddChild(holdRow);
+
+        holdRow.AddChild(new Label { Text = "X" });
+        _holdOffsetXInput = new LineEdit { CustomMinimumSize = new Vector2(70f, 0f) };
+        _holdOffsetXInput.TextChanged += OnHoldOffsetXChanged;
+        holdRow.AddChild(_holdOffsetXInput);
+
+        holdRow.AddChild(new Label { Text = "Y" });
+        _holdOffsetYInput = new LineEdit { CustomMinimumSize = new Vector2(70f, 0f) };
+        _holdOffsetYInput.TextChanged += OnHoldOffsetYChanged;
+        holdRow.AddChild(_holdOffsetYInput);
+
+        _debugSaveButton = new Button { Text = "Save" };
+        _debugSaveButton.Pressed += OnSaveDebugVariablesPressed;
+        layout.AddChild(_debugSaveButton);
     }
 
     private void UpdateInteractionTooltip()
@@ -359,6 +421,14 @@ public partial class GameHUD : CanvasLayer
         if (_debugStatsLabel is not null)
         {
             _debugStatsLabel.Visible = _debugMode;
+        }
+        if (_debugVariablesPanel is not null)
+        {
+            _debugVariablesPanel.Visible = _debugMode;
+        }
+        if (_debugMode)
+        {
+            UpdateDebugVariableFields();
         }
         _debugDirty = true;
     }
@@ -599,6 +669,7 @@ public partial class GameHUD : CanvasLayer
     private void OnWeaponChanged(WeaponData? weapon)
     {
         ResetAccuracyTracking();
+        UpdateDebugVariableFields();
         _debugDirty = true;
     }
 
@@ -647,6 +718,163 @@ public partial class GameHUD : CanvasLayer
     {
         _lastDisplayedAccuracy = -1f;
         _lastDisplayedRecoilPenalty = -1f;
+    }
+
+    private void UpdateDebugVariableFields()
+    {
+        if (_holdOffsetXInput is null || _holdOffsetYInput is null || _debugSaveButton is null)
+        {
+            return;
+        }
+
+        var weapon = _weaponManager?.CurrentWeapon;
+        _suppressDebugInputEvents = true;
+        if (weapon is null)
+        {
+            _holdOffsetXInput.Text = "";
+            _holdOffsetYInput.Text = "";
+            _holdOffsetXInput.Editable = false;
+            _holdOffsetYInput.Editable = false;
+            _debugSaveButton.Disabled = true;
+        }
+        else
+        {
+            _holdOffsetXInput.Text = weapon.HoldOffset.X.ToString("0.###", CultureInfo.InvariantCulture);
+            _holdOffsetYInput.Text = weapon.HoldOffset.Y.ToString("0.###", CultureInfo.InvariantCulture);
+            _holdOffsetXInput.Editable = true;
+            _holdOffsetYInput.Editable = true;
+            _debugSaveButton.Disabled = false;
+        }
+        _suppressDebugInputEvents = false;
+    }
+
+    private void OnHoldOffsetXChanged(string text)
+    {
+        if (_suppressDebugInputEvents)
+        {
+            return;
+        }
+
+        if (TryParseFloat(text, out var value))
+        {
+            ApplyHoldOffsetChange(x: value);
+        }
+    }
+
+    private void OnHoldOffsetYChanged(string text)
+    {
+        if (_suppressDebugInputEvents)
+        {
+            return;
+        }
+
+        if (TryParseFloat(text, out var value))
+        {
+            ApplyHoldOffsetChange(y: value);
+        }
+    }
+
+    private void ApplyHoldOffsetChange(float? x = null, float? y = null)
+    {
+        var weapon = _weaponManager?.CurrentWeapon;
+        if (weapon is null)
+        {
+            return;
+        }
+
+        var offset = weapon.HoldOffset;
+        if (x.HasValue)
+        {
+            offset.X = x.Value;
+        }
+        if (y.HasValue)
+        {
+            offset.Y = y.Value;
+        }
+        weapon.HoldOffset = offset;
+    }
+
+    private void OnSaveDebugVariablesPressed()
+    {
+        if (_weaponManager?.CurrentWeapon is not WeaponData weapon)
+        {
+            GD.PrintErr("GameHUD: Cannot save debug variables; no weapon equipped.");
+            return;
+        }
+
+        if (!TryGetHoldOffsetInput(out var holdOffset))
+        {
+            GD.PrintErr("GameHUD: Cannot save HoldOffset; invalid X or Y value.");
+            return;
+        }
+
+        weapon.HoldOffset = holdOffset;
+
+        var weaponId = weapon.WeaponId?.Trim();
+        if (string.IsNullOrEmpty(weaponId))
+        {
+            GD.PrintErr("GameHUD: Cannot save HoldOffset; weapon has no WeaponId.");
+            return;
+        }
+
+        var jsonPath = $"res://data/items/{weaponId}.json";
+        var globalPath = ProjectSettings.GlobalizePath(jsonPath);
+        if (!File.Exists(globalPath))
+        {
+            GD.PrintErr($"GameHUD: Weapon JSON not found at '{jsonPath}'.");
+            return;
+        }
+
+        try
+        {
+            var json = File.ReadAllText(globalPath);
+            var node = JsonNode.Parse(json) as JsonObject;
+            if (node is null)
+            {
+                GD.PrintErr($"GameHUD: Failed to parse JSON for '{weaponId}'.");
+                return;
+            }
+
+            var holdNode = new JsonObject
+            {
+                ["x"] = holdOffset.X,
+                ["y"] = holdOffset.Y
+            };
+            node["HoldOffset"] = holdNode;
+
+            var options = new JsonSerializerOptions { WriteIndented = true };
+            File.WriteAllText(globalPath, node.ToJsonString(options));
+            GD.Print($"GameHUD: Saved HoldOffset ({holdOffset.X}, {holdOffset.Y}) to {jsonPath}.");
+        }
+        catch (System.Exception ex)
+        {
+            GD.PrintErr($"GameHUD: Failed to save HoldOffset for '{weaponId}'. Error: {ex.Message}");
+        }
+    }
+
+    private bool TryParseFloat(string text, out float value) =>
+        float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+
+    private bool TryGetHoldOffsetInput(out Vector2 holdOffset)
+    {
+        holdOffset = Vector2.Zero;
+        if (_holdOffsetXInput is null || _holdOffsetYInput is null)
+        {
+            return false;
+        }
+
+        if (!TryParseFloat(_holdOffsetXInput.Text, out var x))
+        {
+            return false;
+        }
+
+        if (!TryParseFloat(_holdOffsetYInput.Text, out var y))
+        {
+            return false;
+        }
+
+        holdOffset = new Vector2(x, y);
+        return true;
     }
 
     public override void _ExitTree()

@@ -207,10 +207,21 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 	private Vector2 _heldRecoilOffset = Vector2.Zero;
 	private float _heldWiggleTime;
 	private float _heldBaseRotationRad;
+	private Vector2 _heldAnchorOffset = Vector2.Zero;
+	private Vector2 _lastHeldAnchorOffset = Vector2.Zero;
+	private float _lastHeldAnchorRotationRad;
+	private bool _hasHeldAnchor;
+	private Vector2 _heldSpriteBaseScale = Vector2.One;
+	private Vector2 _heldAttackOffset = Vector2.Zero;
+	private Vector2 _heldAttackScale = Vector2.One;
+	private float _heldAttackRotationRad;
+	private float _heldRotationOffsetRad;
+	private bool _usingAttackKeyframes;
 	private Vector2 _bodyBaseScale = Vector2.One;
 	private Vector2 _bodyScaleOffset = Vector2.Zero;
 	private Vector2 _bodyScaleVelocity = Vector2.Zero;
 	private float _cachedBodySpriteSize = 32f;
+	private bool _usesWeaponHoldOffset;
 
 	public override void _Ready()
 	{
@@ -247,6 +258,10 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		EnsureDefaultHeldAnchors();
 		BuildHeldAnchorLookup();
 		CacheBodyBaseScaleAndSize();
+		if (_heldSprite is not null)
+		{
+			_heldSpriteBaseScale = _heldSprite.Scale;
+		}
 
 		if (_bodySprite is not null)
 		{
@@ -290,8 +305,11 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 			}
 			_heldRecoilOffset = Vector2.Zero;
 			_heldWiggleOffset = Vector2.Zero;
+			_hasHeldAnchor = false;
 			return;
 		}
+
+		_hasHeldAnchor = false;
 
 		_currentWalkAnim = weapon.GetWalkAnimation();
 		_currentAttackAnim = weapon.GetAttackAnimation();
@@ -301,6 +319,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		{
 			_heldSprite.Texture = weapon.HeldSprite;
 			_heldSprite.Visible = weapon.HeldSprite is not null;
+			UpdateHeldSpritePivot();
 			if (weapon.HeldSprite is null)
 			{
 				GD.PrintErr($"PlayerController: Weapon '{weapon.DisplayName}' has no HeldSprite assigned.");
@@ -750,26 +769,26 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 
 		maxHealth = _statsManager?.MaxHealth ?? 100f;
 		HealingItems--;
-	var healedAmount = Mathf.Min(HealAmount, maxHealth - CurrentHealth);
-	CurrentHealth = Mathf.Min(CurrentHealth + HealAmount, maxHealth);
-	GD.Print($"Healed {healedAmount}! Health: {CurrentHealth}/{maxHealth} (Items left: {HealingItems})");
-}
-
-/// <summary>
-/// Adds healing items to the player's inventory.
-/// </summary>
-public void AddHealingItems(int count) => HealingItems += count;
-
-private void HandleKick()
-{
-	// Block kicking during attack or already kicking
-	if (_attackPlaying || _kickPlaying)
-	{
-		return;
+		var healedAmount = Mathf.Min(HealAmount, maxHealth - CurrentHealth);
+		CurrentHealth = Mathf.Min(CurrentHealth + HealAmount, maxHealth);
+		GD.Print($"Healed {healedAmount}! Health: {CurrentHealth}/{maxHealth} (Items left: {HealingItems})");
 	}
 
-	if (!Input.IsActionJustPressed("Kick"))
+	/// <summary>
+	/// Adds healing items to the player's inventory.
+	/// </summary>
+	public void AddHealingItems(int count) => HealingItems += count;
+
+	private void HandleKick()
 	{
+		// Block kicking during attack or already kicking
+		if (_attackPlaying || _kickPlaying)
+		{
+			return;
+		}
+
+		if (!Input.IsActionJustPressed("Kick"))
+		{
 			return;
 		}
 
@@ -1153,11 +1172,28 @@ private void HandleKick()
 		var weapon = _weaponManager?.CurrentWeapon;
 		var baseOffset = weapon?.HoldOffset ?? Vector2.Zero;
 		_heldBaseRotationRad = 0f;
+		_usesWeaponHoldOffset = true;
 
 		if (!string.IsNullOrEmpty(animationName) && _heldAnchorLookup.TryGetValue(animationName, out var anchor))
 		{
-			baseOffset = anchor.Offset;
+			baseOffset = anchor.Offset + (weapon?.HoldOffset ?? Vector2.Zero);
 			_heldBaseRotationRad = Mathf.DegToRad(anchor.RotationDegrees);
+			_heldAnchorOffset = anchor.Offset;
+			_usesWeaponHoldOffset = false;
+			_lastHeldAnchorOffset = _heldAnchorOffset;
+			_lastHeldAnchorRotationRad = _heldBaseRotationRad;
+			_hasHeldAnchor = true;
+		}
+		else if (IsAttackAnimation(animationName) && _hasHeldAnchor)
+		{
+			_heldAnchorOffset = _lastHeldAnchorOffset;
+			_heldBaseRotationRad = _lastHeldAnchorRotationRad;
+			baseOffset = _heldAnchorOffset + (weapon?.HoldOffset ?? Vector2.Zero);
+			_usesWeaponHoldOffset = false;
+			if (_missingHeldAnchors.Add(animationName))
+			{
+				GD.Print($"PlayerController: Missing held anchor for '{animationName}', reusing last anchor.");
+			}
 		}
 		else if (!string.IsNullOrEmpty(animationName) && _missingHeldAnchors.Add(animationName))
 		{
@@ -1178,11 +1214,125 @@ private void HandleKick()
 
 		if (_weaponManager?.CurrentWeapon?.SyncsWithBodyAnimation == false && _bodyNode is not null)
 		{
-			_heldSprite.Rotation = _heldBaseRotationRad - _bodyNode.Rotation;
+			_heldSprite.Rotation = _heldBaseRotationRad + _heldRotationOffsetRad + _heldAttackRotationRad - _bodyNode.Rotation;
 			return;
 		}
 
-		_heldSprite.Rotation = _heldBaseRotationRad;
+		_heldSprite.Rotation = _heldBaseRotationRad + _heldRotationOffsetRad + _heldAttackRotationRad;
+	}
+
+	private void UpdateHeldAttackKeyframe()
+	{
+		_usingAttackKeyframes = false;
+		_heldAttackOffset = Vector2.Zero;
+		_heldAttackRotationRad = 0f;
+		_heldAttackScale = Vector2.One;
+
+		var weapon = _weaponManager?.CurrentWeapon;
+		if (weapon is null || weapon.HeldAttackKeyframes.Count == 0)
+		{
+			return;
+		}
+
+		if (!_attackPlaying || _bodySprite is null)
+		{
+			return;
+		}
+
+		if (_bodySprite.Animation != _currentAttackAnim || _currentAttackFrameCount <= 0)
+		{
+			return;
+		}
+
+		var time = GetAttackAnimationNormalizedTime();
+		if (!TrySampleHeldKeyframe(weapon.HeldAttackKeyframes, time, out var position, out var rotationDeg, out var scale))
+		{
+			return;
+		}
+
+		_usingAttackKeyframes = true;
+		_heldAttackOffset = position;
+		_heldAttackRotationRad = Mathf.DegToRad(rotationDeg);
+		_heldAttackScale = scale;
+	}
+
+	private float GetAttackAnimationNormalizedTime()
+	{
+		if (_bodySprite is null || _currentAttackFrameCount <= 1)
+		{
+			return 0f;
+		}
+
+		var frameIndex = Mathf.Clamp(_bodySprite.Frame, 0, _currentAttackFrameCount - 1);
+		return frameIndex / (float)(_currentAttackFrameCount - 1);
+	}
+
+	private static bool TrySampleHeldKeyframe(
+		IReadOnlyList<WeaponHeldKeyframe> keyframes,
+		float time,
+		out Vector2 position,
+		out float rotationDeg,
+		out Vector2 scale)
+	{
+		position = Vector2.Zero;
+		rotationDeg = 0f;
+		scale = Vector2.One;
+
+		WeaponHeldKeyframe? before = null;
+		WeaponHeldKeyframe? after = null;
+
+		foreach (var frame in keyframes)
+		{
+			if (frame is null)
+			{
+				continue;
+			}
+
+			var t = Mathf.Clamp(frame.Time, 0f, 1f);
+			if (t <= time && (before is null || t > before.Time))
+			{
+				before = frame;
+			}
+			if (t >= time && (after is null || t < after.Time))
+			{
+				after = frame;
+			}
+		}
+
+		if (before is null && after is null)
+		{
+			return false;
+		}
+
+		if (before is null)
+		{
+			position = after!.Position;
+			rotationDeg = after.RotationDegrees;
+			scale = after.Scale;
+			return true;
+		}
+
+		if (after is null)
+		{
+			position = before.Position;
+			rotationDeg = before.RotationDegrees;
+			scale = before.Scale;
+			return true;
+		}
+
+		if (Mathf.IsEqualApprox(before.Time, after.Time))
+		{
+			position = before.Position;
+			rotationDeg = before.RotationDegrees;
+			scale = before.Scale;
+			return true;
+		}
+
+		var alpha = Mathf.Clamp((time - before.Time) / (after.Time - before.Time), 0f, 1f);
+		position = before.Position.Lerp(after.Position, alpha);
+		scale = before.Scale.Lerp(after.Scale, alpha);
+		rotationDeg = Mathf.Lerp(before.RotationDegrees, after.RotationDegrees, alpha);
+		return true;
 	}
 
 	private void UpdateHeldItemOffset(float delta)
@@ -1192,9 +1342,17 @@ private void HandleKick()
 			return;
 		}
 
+		UpdateHeldAttackKeyframe();
+
+		var weaponHoldOffset = _weaponManager?.CurrentWeapon?.HoldOffset ?? Vector2.Zero;
+		_heldRotationOffsetRad = Mathf.DegToRad(_weaponManager?.CurrentWeapon?.HeldRotationOffset ?? 0f);
+		_heldBaseOffset = _usesWeaponHoldOffset ? weaponHoldOffset : _heldAnchorOffset + weaponHoldOffset;
+
 		UpdateHeldWiggle(delta);
 		UpdateHeldRecoil(delta);
 		UpdateHeldSpritePosition();
+		UpdateHeldSpriteScale();
+		UpdateHeldSpriteRotation();
 	}
 
 	private void UpdateHeldWiggle(float delta)
@@ -1265,7 +1423,35 @@ private void HandleKick()
 			return;
 		}
 
-		_heldSprite.Position = _heldBaseOffset + _heldWiggleOffset + _heldRecoilOffset;
+		_heldSprite.Position = _heldBaseOffset + _heldAttackOffset + _heldWiggleOffset + _heldRecoilOffset;
+	}
+
+	private void UpdateHeldSpriteScale()
+	{
+		if (_heldSprite is null)
+		{
+			return;
+		}
+
+		var scale = _heldSpriteBaseScale;
+		if (_usingAttackKeyframes)
+		{
+			scale = new Vector2(scale.X * _heldAttackScale.X, scale.Y * _heldAttackScale.Y);
+		}
+
+		_heldSprite.Scale = scale;
+	}
+
+	private void UpdateHeldSpritePivot()
+	{
+		if (_heldSprite?.Texture is not Texture2D texture)
+		{
+			return;
+		}
+
+		_heldSprite.Centered = false;
+		var size = texture.GetSize();
+		_heldSprite.Offset = new Vector2(0f, -size.Y * 0.5f);
 	}
 
 	private void CacheBodyBaseScaleAndSize()
@@ -1457,8 +1643,8 @@ private void HandleKick()
 		}
 	}
 
-    private void Die() =>
-        // For now, just restart by resetting health
-        // Later this could trigger a death screen or respawn system
-        CurrentHealth = _statsManager?.MaxHealth ?? 100f;
+	private void Die() =>
+		// For now, just restart by resetting health
+		// Later this could trigger a death screen or respawn system
+		CurrentHealth = _statsManager?.MaxHealth ?? 100f;
 }

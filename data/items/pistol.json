@@ -15,8 +15,14 @@
   "RecoilRecovery": 0.2,
   "RecoilWarmup": 0,
   "AnimationSuffix": "pistol",
+  "WalkAnimationName": "mod_walk_ranged_1h",
+  "AttackAnimationName": "none",
   "HeldSprite": "res://assets/sprites/player/mod_weapon_pistol.png",
-  "HoldOffset": { "x": 0, "y": 0 },
+  "HoldOffset": {
+    "x": 6,
+    "y": -3
+  },
+  "HeldRotationOffset": 0,
   "AttackAnimationLoops": false,
   "SyncsWithBodyAnimation": true,
   "WalkAnimationLoops": true,

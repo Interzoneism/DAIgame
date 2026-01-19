@@ -14,15 +14,15 @@ using Godot.Collections;
 public static class ItemDatabase
 {
     // Icon paths - weapons
-    private const string IconPathPistol = "res://assets/sprites/icon_pistol.png";
-    private const string IconPathShotgun = "res://assets/sprites/icon_shotgun.png";
-    private const string IconPathUzi = "res://assets/sprites/icon_uzi.png";
-    private const string IconPathBat = "res://assets/sprites/icon_uzi.png"; // TODO: Add bat icon
+    private const string IconPathPistol = "res://assets/sprites/items/icons/icon_weapon_ranged_pistol.png";
+    private const string IconPathShotgun = "res://assets/sprites/items/icons/icon_weapon_ranged_shotgun.png";
+    private const string IconPathUzi = "res://assets/sprites/items/icons/icon_weapon_ranged_uzi.png";
+    private const string IconPathBat = "res://assets/sprites/items/icons/icon_weapon_melee_bat.png";
 
     // Icon paths - ammo
-    private const string IconPathAmmoSmall = "res://assets/sprites/ammo/ammo_small.png";
-    private const string IconPathAmmoRifle = "res://assets/sprites/ammo/ammo_rifle.png";
-    private const string IconPathAmmoShotgun = "res://assets/sprites/ammo/ammo_shotgun.png";
+    private const string IconPathAmmoSmall = "res://assets/sprites/items/icons/icon_ammo_small.png";
+    private const string IconPathAmmoRifle = "res://assets/sprites/items/icons/icon_ammo_rifle.png";
+    private const string IconPathAmmoShotgun = "res://assets/sprites/items/icons/icon_ammo_shotgun.png";
 
     // Icon paths - wearables
     private const string IconPathClothes = "res://assets/sprites/items/clothes.png";
@@ -340,7 +340,7 @@ public static class ItemDatabase
             GD.PrintErr($"ItemDatabase: Invalid JSON format for '{weaponId}'. Root should be a dictionary.");
             return null;
         }
-        
+
         var data = variant.AsGodotDictionary();
 
         var weapon = new WeaponData();
@@ -367,7 +367,7 @@ public static class ItemDatabase
             }
             return defaultValue;
         }
-        
+
         Vector2 GetVector2(string key)
         {
             if (data.TryGetValue(key, out var v) && v.VariantType == Variant.Type.Dictionary)
@@ -376,6 +376,65 @@ public static class ItemDatabase
                 return new Vector2(dict["x"].AsSingle(), dict["y"].AsSingle());
             }
             return Vector2.Zero;
+        }
+
+        float GetDictFloat(Godot.Collections.Dictionary dict, string key, float defaultValue = 0f)
+        {
+            if (dict.TryGetValue(key, out var v))
+            {
+                try
+                {
+                    return Variant.From(v).As<float>();
+                }
+                catch (Exception ex)
+                {
+                    GD.PrintErr($"ItemDatabase: Error converting '{key}' for '{weaponId}'. Using default. Error: {ex.Message}");
+                    return defaultValue;
+                }
+            }
+            return defaultValue;
+        }
+
+        Vector2 GetDictVector2(Godot.Collections.Dictionary dict, string key, Vector2 defaultValue)
+        {
+            if (dict.TryGetValue(key, out var v) && v.VariantType == Variant.Type.Dictionary)
+            {
+                var valueDict = v.AsGodotDictionary();
+                var x = GetDictFloat(valueDict, "x", defaultValue.X);
+                var y = GetDictFloat(valueDict, "y", defaultValue.Y);
+                return new Vector2(x, y);
+            }
+            return defaultValue;
+        }
+
+        List<WeaponHeldKeyframe> GetKeyframes(string key)
+        {
+            var keyframes = new List<WeaponHeldKeyframe>();
+            if (!data.TryGetValue(key, out var v) || v.VariantType != Variant.Type.Array)
+            {
+                return keyframes;
+            }
+
+            var array = v.AsGodotArray();
+            foreach (var entry in array)
+            {
+                if (entry.VariantType != Variant.Type.Dictionary)
+                {
+                    continue;
+                }
+
+                var dict = entry.AsGodotDictionary();
+                var keyframe = new WeaponHeldKeyframe
+                {
+                    Time = Mathf.Clamp(GetDictFloat(dict, "Time", 0f), 0f, 1f),
+                    RotationDegrees = GetDictFloat(dict, "Rotation", 0f),
+                    Position = GetDictVector2(dict, "Position", Vector2.Zero),
+                    Scale = GetDictVector2(dict, "Scale", Vector2.One)
+                };
+                keyframes.Add(keyframe);
+            }
+
+            return keyframes;
         }
 
         weapon.DisplayName = GetValue<string>("DisplayName");
@@ -394,8 +453,12 @@ public static class ItemDatabase
         weapon.RecoilRecovery = GetValue<float>("RecoilRecovery");
         weapon.RecoilWarmup = GetValue<int>("RecoilWarmup");
         weapon.AnimationSuffix = GetValue<string>("AnimationSuffix");
+        weapon.WalkAnimationName = GetValue<string>("WalkAnimationName");
+        weapon.AttackAnimationName = GetValue<string>("AttackAnimationName");
         
         weapon.HoldOffset = GetVector2("HoldOffset");
+        weapon.HeldRotationOffset = GetValue<float>("HeldRotationOffset");
+        weapon.HeldAttackKeyframes = GetKeyframes("HeldAttackKeyframes");
 
         weapon.AttackAnimationLoops = GetValue<bool>("AttackAnimationLoops");
         weapon.SyncsWithBodyAnimation = GetValue<bool>("SyncsWithBodyAnimation");
