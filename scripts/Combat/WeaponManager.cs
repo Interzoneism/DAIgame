@@ -789,34 +789,68 @@ public partial class WeaponManager : Node2D
 
     private void PlayParticleMuzzleFlash(WeaponData weapon, Vector2 spawnPos, Vector2 direction)
     {
-
-
-        var particles = new GpuParticles2D
+        // Use the canonical muzzle flash scene rather than runtime particle construction
+        const string muzzleScenePath = "res://scenes/effects/MuzzleFlash.tscn";
+        var muzzleScene = GD.Load<PackedScene>(muzzleScenePath);
+        if (muzzleScene is null)
         {
-            ProcessMaterial = _muzzleFlashParticleMaterial,
-            Texture = null,
-            Amount = 10,
-            Lifetime = 1.08f,
-            OneShot = true,
-            Explosiveness = 1f,
-            Randomness = 0.2f,
-            ZAsRelative = true,
-            ZIndex = 1
-        };
+            GD.PrintErr($"WeaponManager: Failed to load muzzle flash scene at {muzzleScenePath}");
+            return;
+        }
+
+        var instance = muzzleScene.Instantiate();
 
         var parentForFlash = GetParent()?.GetNodeOrNull<Node2D>("Body")
             ?? GetParent() as Node2D
             ?? GetTree().CurrentScene as Node2D
             ?? this;
-        parentForFlash.AddChild(particles);
 
-        var forward = direction.Normalized();
-        var flashPos = spawnPos;
-        particles.GlobalPosition = flashPos;
-        particles.GlobalRotation = direction.Angle();
-        particles.Emitting = true;
-        particles.Finished += particles.QueueFree;
+        parentForFlash.AddChild(instance);
 
+        // Position/rotate the root node if it's a Node2D
+        if (instance is Node2D rootNode2D)
+        {
+            rootNode2D.GlobalPosition = spawnPos;
+            rootNode2D.GlobalRotation = direction.Angle();
+        }
+
+        // If the root itself is the GPUParticles2D, start it and return
+        if (instance is GpuParticles2D rootGpu)
+        {
+            rootGpu.Emitting = true;
+            rootGpu.Finished += instance.QueueFree;
+            return;
+        }
+
+        // Otherwise recursively search for any descendant GPUParticles2D and trigger the first one found
+        GpuParticles2D? FindFirstGpu(Node node)
+        {
+            foreach (var child in node.GetChildren())
+            {
+                if (child is GpuParticles2D gp)
+                {
+                    return gp;
+                }
+                var foundChild = FindFirstGpu(child as Node ?? null);
+                if (foundChild is not null)
+                {
+                    return foundChild;
+                }
+            }
+
+            return null;
+        }
+
+        var foundGpu = FindFirstGpu(instance);
+        if (foundGpu is not null)
+        {
+            foundGpu.Emitting = true;
+            foundGpu.Finished += instance.QueueFree;
+            return;
+        }
+
+        // Nothing to emit in the scene; free the instance.
+        instance.QueueFree();
     }
 
     /// <summary>

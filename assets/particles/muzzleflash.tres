@@ -1,13 +1,36 @@
-[gd_resource type="ParticleProcessMaterial" load_steps=3 format=3 uid="uid://drlypxbnncsdm"]
+[gd_resource type="ParticleProcessMaterial" load_steps=5 format=3 uid="uid://drlypxbnncsdm"]
 
-[sub_resource type="Curve" id="Curve_srdt1"]
-_data = [Vector2(0, 1), 0.0, 0.0, 0, 0, Vector2(1, 0), 0.0, 0.0, 0, 0]
+[sub_resource type="Gradient" id="Gradient_c21hd"]
+offsets = PackedFloat32Array(0.23444976, 0.64593303, 1)
+colors = PackedColorArray(1, 1, 1, 1, 0.56581455, 0.94627744, 0.3672675, 1, 0.45733643, 0.9599095, 0.48022717, 1)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_ddp0v"]
+gradient = SubResource("Gradient_c21hd")
+
+[sub_resource type="Curve" id="Curve_whisy"]
+_data = [Vector2(0, 1), 0.0, -0.06011176, 0, 0, Vector2(1, 0.00085401535), -3.3887699, 0.0, 0, 0]
 point_count = 2
 
-[sub_resource type="CurveTexture" id="CurveTexture_x6o17"]
-curve = SubResource("Curve_srdt1")
+[sub_resource type="CurveTexture" id="CurveTexture_fvrq5"]
+curve = SubResource("Curve_whisy")
 
 [resource]
+lifetime_randomness = 0.66
+particle_flag_disable_z = true
+emission_shape_scale = Vector3(0.1, 0.1, 0.1)
+inherit_velocity_ratio = 1.0
+spread = 5.316
+initial_velocity_min = 27.4
+initial_velocity_max = 246.58
+radial_velocity_min = -2.2351742e-05
+radial_velocity_max = 36.529976
+gravity = Vector3(0, 0, 0)
 scale_min = 0.0
-scale_curve = SubResource("CurveTexture_x6o17")
+scale_max = 0.5
+scale_curve = SubResource("CurveTexture_fvrq5")
+color_ramp = SubResource("GradientTexture1D_ddp0v")
+hue_variation_min = -0.030000022
+hue_variation_max = 0.029999977
+turbulence_noise_strength = 0.0
+turbulence_noise_scale = 4.115
 collision_mode = 2
