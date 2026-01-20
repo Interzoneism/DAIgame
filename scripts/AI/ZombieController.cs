@@ -149,6 +149,54 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 	[Export]
 	public PackedScene? BloodSpatterScene { get; set; }
 
+	/// <summary>
+	/// Chance (0-1) for zombie to become limp when taking damage.
+	/// </summary>
+	[Export]
+	public float LimpChance { get; set; } = 0.15f;
+
+	/// <summary>
+	/// Duration of the "stagger pause" when limping (zombie briefly stops moving).
+	/// </summary>
+	[Export]
+	public float LimpStaggerPauseDuration { get; set; } = 0.25f;
+
+	/// <summary>
+	/// Duration of the "stagger move" phase when limping.
+	/// </summary>
+	[Export]
+	public float LimpStaggerMoveDuration { get; set; } = 0.4f;
+
+	/// <summary>
+	/// Chance (0-1) for zombie to become a crawler when killed.
+	/// </summary>
+	[Export]
+	public float CrawlerChance { get; set; } = 0.25f;
+
+	/// <summary>
+	/// Health given to crawler when zombie transforms into one.
+	/// </summary>
+	[Export]
+	public float CrawlerHealth { get; set; } = 25f;
+
+	/// <summary>
+	/// Movement speed multiplier for crawler form.
+	/// </summary>
+	[Export]
+	public float CrawlerSpeedMultiplier { get; set; } = 0.5f;
+
+	/// <summary>
+	/// Duration of the "burst move" phase for crawlers.
+	/// </summary>
+	[Export]
+	public float CrawlerBurstMoveDuration { get; set; } = 0.3f;
+
+	/// <summary>
+	/// Duration of the "burst pause" phase for crawlers.
+	/// </summary>
+	[Export]
+	public float CrawlerBurstPauseDuration { get; set; } = 0.5f;
+
 	private Node2D? _bodyNode;
 	private AnimatedSprite2D? _sprite;
 	private NavigationAgent2D? _navAgent;
@@ -176,6 +224,16 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 	private Node2D? _legsNode;
 	private AnimatedSprite2D? _legsSprite;
 	private Vector2 _lastMoveDir = Vector2.Down;
+
+	// Limp state - staggered movement pattern
+	private bool _isLimping;
+	private float _limpStaggerTimer;
+	private bool _limpIsMovingPhase;
+
+	// Crawler state - transformed zombie that drags itself
+	private bool _isCrawler;
+	private float _crawlerBurstTimer;
+	private bool _crawlerIsMovingPhase;
 
 	// Raycast directions for wall avoidance (8 directions)
 	private static readonly Vector2[] _avoidanceDirections =
@@ -223,6 +281,11 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 				else
 				{
 					// GD.PrintErr("ZombieController._Ready: attack animation not found in SpriteFrames");
+				}
+
+				if (_sprite.SpriteFrames.HasAnimation("crawl_attack"))
+				{
+					_sprite.SpriteFrames.SetAnimationLoop("crawl_attack", false);
 				}
 
 				if (_sprite.SpriteFrames.HasAnimation("lean"))
@@ -366,6 +429,7 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 	{
 		ApplyKnockbackDamp(delta);
 		UpdateHitFlash(delta);
+		UpdateStaggerTimer(delta);
 
 		if (_player is null)
 		{
@@ -412,8 +476,24 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 			direction = Vector2.Zero;
 		}
 
+		// Calculate effective movement speed based on limp/crawler state
+		var effectiveSpeed = GetEffectiveSpeed();
+
+		// Check if we should be moving (staggered movement for limp/crawler)
+		var shouldMove = ShouldMoveThisFrame();
+
 		// Combine navigation direction with wall avoidance
-		var finalVelocity = (direction * MoveSpeed) + avoidance + separationVelocity + _knockbackVelocity;
+		Vector2 movementVelocity;
+		if (shouldMove)
+		{
+			movementVelocity = (direction * effectiveSpeed) + avoidance;
+		}
+		else
+		{
+			movementVelocity = Vector2.Zero;
+		}
+
+		var finalVelocity = movementVelocity + separationVelocity + _knockbackVelocity;
 
 		// If avoidance is being applied, use avoidance velocity from NavigationAgent if enabled
 		if (_navAgent is not null && _navAgent.AvoidanceEnabled)
@@ -433,7 +513,7 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 		}
 
 		// Update legs facing and animation based on movement
-		if (direction != Vector2.Zero)
+		if (direction != Vector2.Zero && shouldMove)
 		{
 			_lastMoveDir = direction;
 			UpdateLegsFacing(direction, true);
@@ -442,6 +522,65 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 		{
 			UpdateLegsFacing(Vector2.Zero, false);
 		}
+	}
+
+	/// <summary>
+	/// Updates the stagger timer for limp or crawler movement patterns.
+	/// </summary>
+	private void UpdateStaggerTimer(float delta)
+	{
+		if (!_isLimping && !_isCrawler)
+		{
+			return;
+		}
+
+		_limpStaggerTimer -= delta;
+		if (_limpStaggerTimer <= 0f)
+		{
+			// Toggle between moving and pausing phases
+			_limpIsMovingPhase = !_limpIsMovingPhase;
+			_crawlerIsMovingPhase = _limpIsMovingPhase;
+
+			if (_isLimping)
+			{
+				_limpStaggerTimer = _limpIsMovingPhase ? LimpStaggerMoveDuration : LimpStaggerPauseDuration;
+			}
+			else if (_isCrawler)
+			{
+				_limpStaggerTimer = _crawlerIsMovingPhase ? CrawlerBurstMoveDuration : CrawlerBurstPauseDuration;
+			}
+		}
+	}
+
+	/// <summary>
+	/// Returns true if the zombie should move this frame (for staggered movement).
+	/// </summary>
+	private bool ShouldMoveThisFrame()
+	{
+		if (_isCrawler)
+		{
+			return _crawlerIsMovingPhase;
+		}
+
+		if (_isLimping)
+		{
+			return _limpIsMovingPhase;
+		}
+
+		return true; // Normal zombies always move
+	}
+
+	/// <summary>
+	/// Gets the effective movement speed considering crawler state.
+	/// </summary>
+	private float GetEffectiveSpeed()
+	{
+		if (_isCrawler)
+		{
+			return MoveSpeed * CrawlerSpeedMultiplier;
+		}
+
+		return MoveSpeed;
 	}
 
 	private void HandleAttacking(float delta)
@@ -503,18 +642,21 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 		_attackPending = true;
 		_attackWindupTimer = AttackWindupDelay;
 
+		// Determine which attack animation to use
+		var attackAnim = _isCrawler ? "crawl_attack" : "attack";
+
 		// Play attack animation from the start each time we attack
 		if (_sprite is not null)
 		{
-			if (_sprite.SpriteFrames is not null && _sprite.SpriteFrames.HasAnimation("attack"))
+			if (_sprite.SpriteFrames is not null && _sprite.SpriteFrames.HasAnimation(attackAnim))
 			{
-				_sprite.SpriteFrames.SetAnimationLoop("attack", false);
+				_sprite.SpriteFrames.SetAnimationLoop(attackAnim, false);
 			}
 
 			_isAttackAnimating = true;
 			_sprite.Stop();
-			_sprite.Play("attack");
-			// GD.Print("ZombieController: Playing attack animation");
+			_sprite.Play(attackAnim);
+			// GD.Print($"ZombieController: Playing {attackAnim} animation");
 		}
 	}
 
@@ -672,13 +814,17 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 			return;
 		}
 
+		// Crawlers use different animations
+		var idleAnim = _isCrawler ? "crawl" : "idle";
+		var walkAnim = _isCrawler ? "crawl" : "walk";
+
 		switch (_state)
 		{
 			case ZombieState.Idle:
-				_sprite.Play("idle");
+				_sprite.Play(idleAnim);
 				break;
 			case ZombieState.Chasing:
-				_sprite.Play("walk");
+				_sprite.Play(walkAnim);
 				break;
 			case ZombieState.Attacking:
 				// Don't force the body animation here - attack animation is
@@ -706,33 +852,39 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 		// Handle lean animation finishing (after knockdown recovery)
 		if (_sprite.Animation == "lean")
 		{
-			// Return to appropriate state animation
+			// Return to appropriate state animation (crawlers use "crawl")
+			var walkAnim = _isCrawler ? "crawl" : "walk";
+			var idleAnim = _isCrawler ? "crawl" : "idle";
+
 			if (_state == ZombieState.Chasing)
 			{
-				_sprite.Play("walk");
+				_sprite.Play(walkAnim);
 				GD.Print("ZombieController: Lean finished, resuming walk");
 			}
 			else
 			{
-				_sprite.Play("idle");
+				_sprite.Play(idleAnim);
 				GD.Print("ZombieController: Lean finished, returning to idle");
 			}
 			return;
 		}
 
 		// If the attack animation finished, resume an appropriate animation
-		if (_sprite.Animation == "attack")
+		if (_sprite.Animation == "attack" || _sprite.Animation == "crawl_attack")
 		{
 			_isAttackAnimating = false;
 
+			var walkAnim = _isCrawler ? "crawl" : "walk";
+			var idleAnim = _isCrawler ? "crawl" : "idle";
+
 			if (_state == ZombieState.Chasing)
 			{
-				_sprite.Play("walk");
+				_sprite.Play(walkAnim);
 				GD.Print("ZombieController: Attack finished, resuming walk");
 			}
 			else
 			{
-				_sprite.Play("idle");
+				_sprite.Play(idleAnim);
 				GD.Print("ZombieController: Attack finished, returning to idle");
 			}
 		}
@@ -745,9 +897,10 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 			return;
 		}
 
-		if (_sprite.Animation != "idle")
+		var idleAnim = _isCrawler ? "crawl" : "idle";
+		if (_sprite.Animation != idleAnim)
 		{
-			_sprite.Play("idle");
+			_sprite.Play(idleAnim);
 		}
 	}
 
@@ -871,7 +1024,25 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 		{
 			// Non-lethal hit - apply impact rotation to body
 			ApplyImpactRotation(hitPos);
+
+			// Chance to become limp when damaged (only if not already limp or crawler)
+			if (!_isLimping && !_isCrawler && GD.Randf() < LimpChance)
+			{
+				BecomeLinping();
+			}
 		}
+	}
+
+	/// <summary>
+	/// Makes the zombie limp, affecting its movement pattern and leg animation.
+	/// </summary>
+	private void BecomeLinping()
+	{
+		_isLimping = true;
+		_limpIsMovingPhase = true;
+		_limpStaggerTimer = LimpStaggerMoveDuration;
+
+		GD.Print("Zombie is now limping!");
 	}
 
 	/// <summary>
@@ -996,6 +1167,7 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 	/// <summary>
 	/// Rotate the legs to face the movement direction (snapped to eight directions) and
 	/// pause/play the walk animation depending on whether the zombie is moving.
+	/// Crawlers have no legs visible. Limping zombies use "limp" animation.
 	/// </summary>
 	private void UpdateLegsFacing(Vector2 movementDir, bool isMoving)
 	{
@@ -1004,6 +1176,14 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 			return;
 		}
 
+		// Crawlers have no legs - hide them
+		if (_isCrawler)
+		{
+			_legsNode.Visible = false;
+			return;
+		}
+
+		_legsNode.Visible = true;
 		var dir = movementDir.LengthSquared() > 0 ? movementDir : _lastMoveDir;
 		var snappedAngle = SnapToEightDirections(dir.Angle());
 		_legsNode.Rotation = snappedAngle;
@@ -1012,6 +1192,13 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 		{
 			// Flip horizontally when moving left
 			_legsSprite.FlipH = dir.X < 0;
+
+			// Use limp animation when limping
+			var targetAnim = _isLimping ? "limp" : "walk";
+			if (_legsSprite.Animation != targetAnim)
+			{
+				_legsSprite.Play(targetAnim);
+			}
 
 			if (!isMoving)
 			{
@@ -1101,6 +1288,13 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 			return;
 		}
 
+		// Check for crawler transformation chance (only if not already a crawler)
+		if (!_isCrawler && GD.Randf() < CrawlerChance)
+		{
+			BecomeCrawler();
+			return;
+		}
+
 		_isDying = true;
 		_impactRotationTween?.Kill();
 
@@ -1123,6 +1317,44 @@ public partial class ZombieController : CharacterBody2D, IDamageable, IKnockback
 			GD.Print("ZombieController: No death animation, dying immediately");
 			OnDeathAnimationFinished();
 		}
+	}
+
+	/// <summary>
+	/// Transforms the zombie into a crawler form instead of dying.
+	/// Crawlers drag themselves forward in bursts and use different animations.
+	/// </summary>
+	private void BecomeCrawler()
+	{
+		_isCrawler = true;
+		_currentHealth = CrawlerHealth;
+		_crawlerIsMovingPhase = false;
+		_crawlerBurstTimer = CrawlerBurstPauseDuration;
+		_limpStaggerTimer = CrawlerBurstPauseDuration; // Use same timer for stagger logic
+
+		// Disable limping (crawler movement replaces it)
+		_isLimping = false;
+
+		// Hide legs - crawlers drag themselves
+		if (_legsNode is not null)
+		{
+			_legsNode.Visible = false;
+		}
+
+		// Reset attack state
+		_attackPending = false;
+		_isAttackAnimating = false;
+		_attackCooldownTimer = 0f;
+
+		// Set crawler animation
+		if (_sprite is not null)
+		{
+			_sprite.Play("crawl");
+		}
+
+		// Spawn blood spatter for the transformation
+		SpawnBloodSpatter();
+
+		GD.Print("Zombie transformed into a crawler!");
 	}
 
 	private void SpawnCorpse()

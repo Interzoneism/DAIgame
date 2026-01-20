@@ -18,11 +18,12 @@
   "WalkAnimationName": "mod_walk_melee_2h",
   "AttackAnimationName": "mod_attack_melee_2h",
   "HeldSprite": "res://assets/sprites/player/mod_weapon_bat.png",
+  "DrawUnderBody": true,
   "HoldOffset": {
     "x": 0,
     "y": 0
   },
-  "HeldRotationOffset": 120,
+  "HeldRotationOffset": 100,
   "HeldAttackKeyframes": [
     {
       "Time": 0.0,
@@ -42,19 +43,19 @@
         "x": 0,
         "y": 0
       },
-      "Rotation": -20,
+      "Rotation": 5,
       "Scale": {
         "x": 1,
         "y": 1
       }
     },
     {
-      "Time": 1.0,
+      "Time": 0.9,
       "Position": {
         "x": 0,
         "y": 0
       },
-      "Rotation": -190,
+      "Rotation": -200,
       "Scale": {
         "x": 1,
         "y": 1
@@ -70,6 +71,7 @@
   "ProjectileSpeed": 0,
   "SpawnOffsetX": 0,
   "SpawnOffsetY": 0,
+  "MuzzleFlash": "none",
   "ReloadMode": "Magazine",
   "AmmoType": "None",
   "IsMelee": true,

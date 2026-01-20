@@ -18,9 +18,10 @@
   "WalkAnimationName": "mod_walk_ranged_2h",
   "AttackAnimationName": "none",
   "HeldSprite": "res://assets/sprites/player/mod_weapon_shotgun.png",
+  "DrawUnderBody": false,
   "HoldOffset": {
-    "x": -4,
-    "y": 0
+    "x": -6,
+    "y": 2
   },
   "HeldRotationOffset": 0,
   "AttackAnimationLoops": false,
@@ -30,8 +31,9 @@
   "MagazineSize": 8,
   "ReloadTime": 0.5,
   "ProjectileSpeed": 1000,
-  "SpawnOffsetX": 10,
+  "SpawnOffsetX": 30,
   "SpawnOffsetY": 0,
+  "MuzzleFlash": "shotgun",
   "ReloadMode": "ShellByShell",
   "AmmoType": "Shotgun",
   "IsMelee": false

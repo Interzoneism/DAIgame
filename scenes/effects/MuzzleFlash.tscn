@@ -1,0 +1,44 @@
+[gd_scene load_steps=6 format=3 uid="uid://brie0faoma5c0"]
+
+[sub_resource type="Gradient" id="Gradient_c21hd"]
+offsets = PackedFloat32Array(0, 0.13397129)
+colors = PackedColorArray(1, 1, 1, 1, 0.45733643, 0.9599095, 0.48022717, 1)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_ddp0v"]
+gradient = SubResource("Gradient_c21hd")
+
+[sub_resource type="Curve" id="Curve_whisy"]
+_data = [Vector2(0, 1), 0.0, 0.0, 0, 0, Vector2(0.37612614, 0), 0.0, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="CurveTexture" id="CurveTexture_fvrq5"]
+curve = SubResource("Curve_whisy")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_okrd0"]
+lifetime_randomness = 1.0
+particle_flag_disable_z = true
+spread = 0.19
+flatness = 0.025
+initial_velocity_min = 134.84999
+initial_velocity_max = 257.25998
+radial_velocity_min = -2.2351742e-05
+radial_velocity_max = 146.03998
+gravity = Vector3(0, 0, 0)
+scale_min = 0.19999999
+scale_curve = SubResource("CurveTexture_fvrq5")
+color_ramp = SubResource("GradientTexture1D_ddp0v")
+hue_variation_min = -0.09000002
+hue_variation_max = 0.06999998
+collision_mode = 2
+
+[node name="MuzzleFlash" type="Node2D"]
+
+[node name="GPUParticles2D" type="GPUParticles2D" parent="."]
+amount = 503
+lifetime = 0.61
+explosiveness = 1.0
+randomness = 0.07
+trail_lifetime = 0.01
+trail_sections = 2
+trail_section_subdivisions = 2
+process_material = SubResource("ParticleProcessMaterial_okrd0")

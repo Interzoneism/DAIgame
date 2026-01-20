@@ -27,6 +27,8 @@ public partial class GameHUD : CanvasLayer
     private PanelContainer? _debugVariablesPanel;
     private LineEdit? _holdOffsetXInput;
     private LineEdit? _holdOffsetYInput;
+    private LineEdit? _spawnOffsetXInput;
+    private LineEdit? _spawnOffsetYInput;
     private Button? _debugSaveButton;
     private PlayerController? _player;
     private PlayerStatsManager? _statsManager;
@@ -317,6 +319,22 @@ public partial class GameHUD : CanvasLayer
         _holdOffsetYInput = new LineEdit { CustomMinimumSize = new Vector2(70f, 0f) };
         _holdOffsetYInput.TextChanged += OnHoldOffsetYChanged;
         holdRow.AddChild(_holdOffsetYInput);
+
+        var spawnLabel = new Label { Text = "SpawnOffset" };
+        layout.AddChild(spawnLabel);
+
+        var spawnRow = new HBoxContainer();
+        layout.AddChild(spawnRow);
+
+        spawnRow.AddChild(new Label { Text = "X" });
+        _spawnOffsetXInput = new LineEdit { CustomMinimumSize = new Vector2(70f, 0f) };
+        _spawnOffsetXInput.TextChanged += OnSpawnOffsetXChanged;
+        spawnRow.AddChild(_spawnOffsetXInput);
+
+        spawnRow.AddChild(new Label { Text = "Y" });
+        _spawnOffsetYInput = new LineEdit { CustomMinimumSize = new Vector2(70f, 0f) };
+        _spawnOffsetYInput.TextChanged += OnSpawnOffsetYChanged;
+        spawnRow.AddChild(_spawnOffsetYInput);
 
         _debugSaveButton = new Button { Text = "Save" };
         _debugSaveButton.Pressed += OnSaveDebugVariablesPressed;
@@ -722,7 +740,7 @@ public partial class GameHUD : CanvasLayer
 
     private void UpdateDebugVariableFields()
     {
-        if (_holdOffsetXInput is null || _holdOffsetYInput is null || _debugSaveButton is null)
+        if (_holdOffsetXInput is null || _holdOffsetYInput is null || _spawnOffsetXInput is null || _spawnOffsetYInput is null || _debugSaveButton is null)
         {
             return;
         }
@@ -733,16 +751,24 @@ public partial class GameHUD : CanvasLayer
         {
             _holdOffsetXInput.Text = "";
             _holdOffsetYInput.Text = "";
+            _spawnOffsetXInput.Text = "";
+            _spawnOffsetYInput.Text = "";
             _holdOffsetXInput.Editable = false;
             _holdOffsetYInput.Editable = false;
+            _spawnOffsetXInput.Editable = false;
+            _spawnOffsetYInput.Editable = false;
             _debugSaveButton.Disabled = true;
         }
         else
         {
             _holdOffsetXInput.Text = weapon.HoldOffset.X.ToString("0.###", CultureInfo.InvariantCulture);
             _holdOffsetYInput.Text = weapon.HoldOffset.Y.ToString("0.###", CultureInfo.InvariantCulture);
+            _spawnOffsetXInput.Text = weapon.SpawnOffsetX.ToString("0.###", CultureInfo.InvariantCulture);
+            _spawnOffsetYInput.Text = weapon.SpawnOffsetY.ToString("0.###", CultureInfo.InvariantCulture);
             _holdOffsetXInput.Editable = true;
             _holdOffsetYInput.Editable = true;
+            _spawnOffsetXInput.Editable = true;
+            _spawnOffsetYInput.Editable = true;
             _debugSaveButton.Disabled = false;
         }
         _suppressDebugInputEvents = false;
@@ -794,6 +820,50 @@ public partial class GameHUD : CanvasLayer
         weapon.HoldOffset = offset;
     }
 
+    private void OnSpawnOffsetXChanged(string text)
+    {
+        if (_suppressDebugInputEvents)
+        {
+            return;
+        }
+
+        if (TryParseFloat(text, out var value))
+        {
+            ApplySpawnOffsetChange(x: value);
+        }
+    }
+
+    private void OnSpawnOffsetYChanged(string text)
+    {
+        if (_suppressDebugInputEvents)
+        {
+            return;
+        }
+
+        if (TryParseFloat(text, out var value))
+        {
+            ApplySpawnOffsetChange(y: value);
+        }
+    }
+
+    private void ApplySpawnOffsetChange(float? x = null, float? y = null)
+    {
+        var weapon = _weaponManager?.CurrentWeapon;
+        if (weapon is null)
+        {
+            return;
+        }
+
+        if (x.HasValue)
+        {
+            weapon.SpawnOffsetX = x.Value;
+        }
+        if (y.HasValue)
+        {
+            weapon.SpawnOffsetY = y.Value;
+        }
+    }
+
     private void OnSaveDebugVariablesPressed()
     {
         if (_weaponManager?.CurrentWeapon is not WeaponData weapon)
@@ -808,12 +878,20 @@ public partial class GameHUD : CanvasLayer
             return;
         }
 
+        if (!TryGetSpawnOffsetInput(out var spawnOffset))
+        {
+            GD.PrintErr("GameHUD: Cannot save SpawnOffset; invalid X or Y value.");
+            return;
+        }
+
         weapon.HoldOffset = holdOffset;
+        weapon.SpawnOffsetX = spawnOffset.X;
+        weapon.SpawnOffsetY = spawnOffset.Y;
 
         var weaponId = weapon.WeaponId?.Trim();
         if (string.IsNullOrEmpty(weaponId))
         {
-            GD.PrintErr("GameHUD: Cannot save HoldOffset; weapon has no WeaponId.");
+            GD.PrintErr("GameHUD: Cannot save debug variables; weapon has no WeaponId.");
             return;
         }
 
@@ -841,14 +919,16 @@ public partial class GameHUD : CanvasLayer
                 ["y"] = holdOffset.Y
             };
             node["HoldOffset"] = holdNode;
+            node["SpawnOffsetX"] = spawnOffset.X;
+            node["SpawnOffsetY"] = spawnOffset.Y;
 
             var options = new JsonSerializerOptions { WriteIndented = true };
             File.WriteAllText(globalPath, node.ToJsonString(options));
-            GD.Print($"GameHUD: Saved HoldOffset ({holdOffset.X}, {holdOffset.Y}) to {jsonPath}.");
+            GD.Print($"GameHUD: Saved HoldOffset ({holdOffset.X}, {holdOffset.Y}) and SpawnOffset ({spawnOffset.X}, {spawnOffset.Y}) to {jsonPath}.");
         }
         catch (System.Exception ex)
         {
-            GD.PrintErr($"GameHUD: Failed to save HoldOffset for '{weaponId}'. Error: {ex.Message}");
+            GD.PrintErr($"GameHUD: Failed to save debug variables for '{weaponId}'. Error: {ex.Message}");
         }
     }
 
@@ -874,6 +954,28 @@ public partial class GameHUD : CanvasLayer
         }
 
         holdOffset = new Vector2(x, y);
+        return true;
+    }
+
+    private bool TryGetSpawnOffsetInput(out Vector2 spawnOffset)
+    {
+        spawnOffset = Vector2.Zero;
+        if (_spawnOffsetXInput is null || _spawnOffsetYInput is null)
+        {
+            return false;
+        }
+
+        if (!TryParseFloat(_spawnOffsetXInput.Text, out var x))
+        {
+            return false;
+        }
+
+        if (!TryParseFloat(_spawnOffsetYInput.Text, out var y))
+        {
+            return false;
+        }
+
+        spawnOffset = new Vector2(x, y);
         return true;
     }
 

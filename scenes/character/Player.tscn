@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://bx3d1r6cnb3o1"]
+[gd_scene load_steps=12 format=3 uid="uid://bx3d1r6cnb3o1"]
 
 [ext_resource type="SpriteFrames" uid="uid://2navlis0yapa" path="res://assets/spriteframes/sprF_player.tres" id="1_4geon"]
 [ext_resource type="Script" path="res://scripts/Player/PlayerController.cs" id="2_player"]
@@ -11,6 +11,8 @@
 [ext_resource type="Script" path="res://scripts/Core/InteractionManager.cs" id="13_interactionmanager"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_ddj42"]
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_5w7pv"]
 
 [node name="Player" type="CharacterBody2D"]
 z_index = 6
@@ -37,7 +39,7 @@ centered = false
 [node name="Legs" type="Node2D" parent="."]
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Legs"]
-z_index = -1
+z_index = -2
 sprite_frames = ExtResource("3_cxfou")
 animation = &"walkL"
 
@@ -45,6 +47,7 @@ animation = &"walkL"
 script = ExtResource("4_weapon")
 BulletScene = ExtResource("5_bullet")
 StartingWeapons = []
+MuzzleFlashParticleMaterialOverride = SubResource("ParticleProcessMaterial_5w7pv")
 
 [node name="PlayerInventory" type="Node" parent="."]
 script = ExtResource("7_inventory")

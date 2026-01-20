@@ -38,7 +38,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 	/// Wiggle frequency in cycles per second at full move speed.
 	/// </summary>
 	[Export]
-	public float HeldWiggleFrequency { get; set; } = 9f;
+	public float HeldWiggleFrequency { get; set; } = 12f;
 
 	/// <summary>
 	/// Pixels of recoil kick applied to held item per ranged shot.
@@ -319,6 +319,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		{
 			_heldSprite.Texture = weapon.HeldSprite;
 			_heldSprite.Visible = weapon.HeldSprite is not null;
+			_heldSprite.ZIndex = weapon.DrawUnderBody ? -1 : 1;
 			UpdateHeldSpritePivot();
 			if (weapon.HeldSprite is null)
 			{
@@ -802,7 +803,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		StartKickAnimation();
 	}
 
-	private void StartKickAnimation()
+	public void StartKickAnimation()
 	{
 		if (_bodySprite is null)
 		{
@@ -982,8 +983,12 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 	/// Checks if the animation name is an attack animation.
 	/// Uses prefix matching to support any weapon type without hardcoding.
 	/// </summary>
-	private static bool IsAttackAnimation(StringName animation)
+	private static bool IsAttackAnimation(string? animation)
 	{
+		if (string.IsNullOrEmpty(animation))
+		{
+			return false;
+		}
 		var name = animation.ToString();
 		return name.StartsWith("attack_", System.StringComparison.Ordinal)
 			|| name.StartsWith("mod_attack", System.StringComparison.Ordinal);
@@ -1160,7 +1165,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		ApplyHeldAnchorForAnimation(animation);
 	}
 
-	private void ApplyHeldAnchorForAnimation(string animationName)
+	private void ApplyHeldAnchorForAnimation(string? animationName)
 	{
 		if (_heldSprite is null)
 		{
@@ -1190,7 +1195,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 			_heldBaseRotationRad = _lastHeldAnchorRotationRad;
 			baseOffset = _heldAnchorOffset + (weapon?.HoldOffset ?? Vector2.Zero);
 			_usesWeaponHoldOffset = false;
-			if (_missingHeldAnchors.Add(animationName))
+			if (animationName != null && _missingHeldAnchors.Add(animationName))
 			{
 				GD.Print($"PlayerController: Missing held anchor for '{animationName}', reusing last anchor.");
 			}
@@ -1366,7 +1371,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		var speedScale = Mathf.Clamp(_currentMoveSpeed / _walkSpeedReference, 0f, 1.2f);
 		_heldWiggleTime += delta * HeldWiggleFrequency * Mathf.Tau * speedScale;
 		var amplitude = HeldWiggleAmplitude * speedScale;
-		_heldWiggleOffset = new Vector2(0f, Mathf.Sin(_heldWiggleTime) * amplitude);
+		_heldWiggleOffset = new Vector2(Mathf.Sin(_heldWiggleTime) * (amplitude * 0.8f), Mathf.Sin(_heldWiggleTime) * amplitude);
 	}
 
 	private void UpdateHeldRecoil(float delta)

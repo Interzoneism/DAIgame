@@ -230,6 +230,12 @@ public partial class WeaponData : Resource
     public Texture2D? HeldSprite { get; set; }
 
     /// <summary>
+    /// If true, draw the held weapon under the body sprite.
+    /// </summary>
+    [Export]
+    public bool DrawUnderBody { get; set; } = false;
+
+    /// <summary>
     /// Offset position for the held sprite relative to the player's body center.
     /// </summary>
     [Export]
@@ -299,6 +305,18 @@ public partial class WeaponData : Resource
     /// </summary>
     [Export]
     public float SpawnOffsetY { get; set; } = 0f;
+
+    /// <summary>
+    /// Which muzzle flash animation to play from sprF_muzzleflash. "none" means no flash.
+    /// </summary>
+    [Export]
+    public string MuzzleFlash { get; set; } = "none";
+
+    /// <summary>
+    /// If true, use a particle-based muzzle flash instead of sprite animation.
+    /// </summary>
+    [Export]
+    public bool UseParticleMuzzleFlash { get; set; } = false;
 
     /// <summary>
     /// How the weapon reloads (magazine or shell-by-shell).
@@ -392,6 +410,7 @@ public partial class WeaponData : Resource
             WalkAnimationName = WalkAnimationName,
             AttackAnimationName = AttackAnimationName,
             HeldSprite = HeldSprite,
+            DrawUnderBody = DrawUnderBody,
             HoldOffset = HoldOffset,
             HeldRotationOffset = HeldRotationOffset,
             HeldAttackKeyframes = CloneKeyframes(HeldAttackKeyframes),
@@ -404,6 +423,8 @@ public partial class WeaponData : Resource
             ProjectileSpeed = ProjectileSpeed,
             SpawnOffsetX = SpawnOffsetX,
             SpawnOffsetY = SpawnOffsetY,
+            MuzzleFlash = MuzzleFlash,
+            UseParticleMuzzleFlash = UseParticleMuzzleFlash,
             ReloadMode = ReloadMode,
             AmmoType = AmmoType,
             IsMelee = IsMelee,

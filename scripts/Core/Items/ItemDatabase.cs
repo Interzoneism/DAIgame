@@ -457,6 +457,7 @@ public static class ItemDatabase
         weapon.AttackAnimationName = GetValue<string>("AttackAnimationName");
         
         weapon.HoldOffset = GetVector2("HoldOffset");
+        weapon.DrawUnderBody = GetValue<bool>("DrawUnderBody");
         weapon.HeldRotationOffset = GetValue<float>("HeldRotationOffset");
         weapon.HeldAttackKeyframes = GetKeyframes("HeldAttackKeyframes");
 
@@ -469,6 +470,8 @@ public static class ItemDatabase
         weapon.ProjectileSpeed = GetValue<float>("ProjectileSpeed");
         weapon.SpawnOffsetX = GetValue<float>("SpawnOffsetX");
         weapon.SpawnOffsetY = GetValue<float>("SpawnOffsetY");
+        weapon.MuzzleFlash = GetValue<string>("MuzzleFlash");
+        weapon.UseParticleMuzzleFlash = GetValue<bool>("UseParticleMuzzleFlash");
         weapon.ReloadMode = GetValue<WeaponReloadMode>("ReloadMode");
         weapon.AmmoType = GetValue<AmmoType>("AmmoType");
         weapon.IsMelee = GetValue<bool>("IsMelee");

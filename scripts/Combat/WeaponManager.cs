@@ -67,6 +67,19 @@ public partial class WeaponManager : Node2D
     public float AimDownSightsRecoilMultiplier { get; set; } = 1f;
 
     /// <summary>
+    /// Optional override for the muzzle flash particle material. If set in the Inspector,
+    /// this will be used instead of creating a runtime-only default material.
+    /// </summary>
+    [Export]
+    public ParticleProcessMaterial? MuzzleFlashParticleMaterialOverride { get; set; }
+
+    /// <summary>
+    /// Optional override for the muzzle flash sprite frames resource.
+    /// </summary>
+    [Export]
+    public SpriteFrames? MuzzleFlashFramesOverride { get; set; }
+
+    /// <summary>
     /// Currently equipped weapon data.
     /// </summary>
     public WeaponData? CurrentWeapon => CurrentWeaponIndex >= 0 && CurrentWeaponIndex < _weapons.Count
@@ -149,9 +162,43 @@ public partial class WeaponManager : Node2D
     private PlayerInventory? _inventory;
     private int _lastReticuleWeaponIndex = -1;
     private bool _lastReticuleWasRanged;
+    private SpriteFrames? _muzzleFlashFrames;
+    private ParticleProcessMaterial? _muzzleFlashParticleMaterial;
 
     public override void _Ready()
     {
+        // Allow overriding the spriteframes and particle material from the Inspector.
+        _muzzleFlashFrames = MuzzleFlashFramesOverride ?? GD.Load<SpriteFrames>("res://assets/spriteframes/sprF_muzzleflash.tres");
+
+        if (MuzzleFlashParticleMaterialOverride is not null)
+        {
+            _muzzleFlashParticleMaterial = MuzzleFlashParticleMaterialOverride;
+        }
+        else
+        {
+            _muzzleFlashParticleMaterial = new ParticleProcessMaterial
+            {
+                EmissionShape = ParticleProcessMaterial.EmissionShapeEnum.Point,
+                Direction = new Vector3(1f, 0f, 0f),
+                Spread = 25f,
+                InitialVelocityMin = 0f,
+                InitialVelocityMax = 80f,
+                Gravity = Vector3.Zero,
+                ScaleMin = 0.6f,
+                ScaleMax = 1.1f,
+                Color = new Color(1f, 0.8f, 0.4f, 1f),
+                HueVariationMin = -0.03f,
+                HueVariationMax = 0.03f
+            };
+            var muzzleScaleCurve = new Curve();
+            muzzleScaleCurve.AddPoint(new Vector2(0f, 1f));
+            muzzleScaleCurve.AddPoint(new Vector2(1f, 0f));
+            _muzzleFlashParticleMaterial.ScaleCurve = new CurveTexture
+            {
+                Curve = muzzleScaleCurve
+            };
+        }
+
         // Create melee handler as a child node
         MeleeHandler = new MeleeWeaponHandler();
         AddChild(MeleeHandler);
@@ -646,6 +693,8 @@ public partial class WeaponManager : Node2D
         var perpendicular = new Vector2(-forward.Y, forward.X); // Rotated 90 degrees CCW
         var spawnPos = origin + (forward * weapon.SpawnOffsetX) + (perpendicular * weapon.SpawnOffsetY);
 
+        PlayMuzzleFlash(weapon, spawnPos, direction);
+
         var pelletCount = weapon.PelletCount;
 
         // Calculate effective spread from recoil-adjusted accuracy.
@@ -684,6 +733,90 @@ public partial class WeaponManager : Node2D
         }
 
         GD.Print($"WeaponManager: Fired {pelletCount} projectile(s) from {weapon.DisplayName} (spread: {totalSpreadDeg:F1} deg = stability {stabilitySpreadDeg:F1} deg @ {accuracyPercent:F0}% (base {baseAccuracyPercent:F0}% - recoil {CurrentRecoilPenalty:F1}%) + weapon spread {weapon.SpreadAngle:F1} deg)");
+    }
+
+    private void PlayMuzzleFlash(WeaponData weapon, Vector2 spawnPos, Vector2 direction)
+    {
+        if (_muzzleFlashFrames is null || string.IsNullOrEmpty(weapon.MuzzleFlash) || weapon.MuzzleFlash.Equals("none", System.StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (!_muzzleFlashFrames.HasAnimation(weapon.MuzzleFlash))
+        {
+            GD.PrintErr($"WeaponManager: Muzzle flash animation '{weapon.MuzzleFlash}' not found in sprF_muzzleflash.tres");
+            return;
+        }
+
+        if (weapon.UseParticleMuzzleFlash)
+        {
+            PlayParticleMuzzleFlash(weapon, spawnPos, direction);
+            return;
+        }
+
+        var flash = new AnimatedSprite2D
+        {
+            SpriteFrames = _muzzleFlashFrames,
+            Animation = weapon.MuzzleFlash
+        };
+
+        // Set offset to be left-middle
+        flash.Centered = false;
+        var frame = _muzzleFlashFrames.GetFrameTexture(weapon.MuzzleFlash, 0);
+        if (frame is not null)
+        {
+            flash.Offset = new Vector2(0, -frame.GetSize().Y / 2f);
+        }
+
+
+        flash.ZAsRelative = true;
+        flash.ZIndex = 1;
+
+        // The animation should not loop. The user said it should be removed when finished.
+        // I can achieve this by connecting to the "animation_finished" signal.
+        flash.AnimationFinished += () => flash.QueueFree();
+
+        var parentForFlash = GetParent()?.GetNodeOrNull<Node2D>("Body")
+            ?? GetParent() as Node2D
+            ?? GetTree().CurrentScene as Node2D
+            ?? this;
+        parentForFlash.AddChild(flash);
+        flash.GlobalPosition = spawnPos;
+        flash.GlobalRotation = direction.Angle();
+        flash.Play();
+        GD.Print($"WeaponManager: Muzzle flash '{weapon.MuzzleFlash}' spawned at {spawnPos} (parent: {parentForFlash.Name}).");
+    }
+
+    private void PlayParticleMuzzleFlash(WeaponData weapon, Vector2 spawnPos, Vector2 direction)
+    {
+
+
+        var particles = new GpuParticles2D
+        {
+            ProcessMaterial = _muzzleFlashParticleMaterial,
+            Texture = null,
+            Amount = 10,
+            Lifetime = 1.08f,
+            OneShot = true,
+            Explosiveness = 1f,
+            Randomness = 0.2f,
+            ZAsRelative = true,
+            ZIndex = 1
+        };
+
+        var parentForFlash = GetParent()?.GetNodeOrNull<Node2D>("Body")
+            ?? GetParent() as Node2D
+            ?? GetTree().CurrentScene as Node2D
+            ?? this;
+        parentForFlash.AddChild(particles);
+
+        var forward = direction.Normalized();
+        var flashPos = spawnPos;
+        particles.GlobalPosition = flashPos;
+        particles.GlobalRotation = direction.Angle();
+        particles.Emitting = true;
+        particles.Finished += particles.QueueFree;
+
     }
 
     /// <summary>
