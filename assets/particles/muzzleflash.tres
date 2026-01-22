@@ -8,8 +8,8 @@ colors = PackedColorArray(1, 1, 1, 1, 0.56581455, 0.94627744, 0.3672675, 1, 0.45
 gradient = SubResource("Gradient_c21hd")
 
 [sub_resource type="Curve" id="Curve_whisy"]
-_data = [Vector2(0, 1), 0.0, -0.06011176, 0, 0, Vector2(1, 0.00085401535), -3.3887699, 0.0, 0, 0]
-point_count = 2
+_data = [Vector2(0, 1), 0.0, -0.06011176, 0, 0, Vector2(0.509009, 0.5503843), 0.0, 0.0, 0, 0, Vector2(1, 0), -3.3887699, 0.0, 0, 0]
+point_count = 3
 
 [sub_resource type="CurveTexture" id="CurveTexture_fvrq5"]
 curve = SubResource("Curve_whisy")
@@ -21,10 +21,16 @@ emission_shape_scale = Vector3(0.1, 0.1, 0.1)
 inherit_velocity_ratio = 1.0
 spread = 5.316
 initial_velocity_min = 27.4
-initial_velocity_max = 246.58
+initial_velocity_max = 100.47
 radial_velocity_min = -2.2351742e-05
 radial_velocity_max = 36.529976
 gravity = Vector3(0, 0, 0)
+linear_accel_min = -2.2351742e-06
+linear_accel_max = -2.2351742e-06
+tangential_accel_min = -100.0
+tangential_accel_max = 99.99999
+damping_min = 49.378002
+damping_max = 300.0
 scale_min = 0.0
 scale_max = 0.5
 scale_curve = SubResource("CurveTexture_fvrq5")

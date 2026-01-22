@@ -14,3 +14,15 @@ trail_lifetime = 0.01
 trail_sections = 2
 trail_section_subdivisions = 2
 process_material = ExtResource("1_ddp0v")
+
+[node name="ParticlesLong" type="GPUParticles2D" parent="."]
+emitting = false
+amount = 46
+lifetime = 0.74
+one_shot = true
+explosiveness = 1.0
+randomness = 0.3
+trail_lifetime = 0.01
+trail_sections = 2
+trail_section_subdivisions = 2
+process_material = ExtResource("1_ddp0v")

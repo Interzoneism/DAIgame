@@ -814,43 +814,50 @@ public partial class WeaponManager : Node2D
             rootNode2D.GlobalRotation = direction.Angle();
         }
 
-        // If the root itself is the GPUParticles2D, start it and return
-        if (instance is GpuParticles2D rootGpu)
+        // Collect ALL GPUParticles2D in the instantiated scene (including root)
+        var emitters = new List<GpuParticles2D>();
+        void CollectEmitters(Node? node)
         {
-            rootGpu.Emitting = true;
-            rootGpu.Finished += instance.QueueFree;
-            return;
-        }
-
-        // Otherwise recursively search for any descendant GPUParticles2D and trigger the first one found
-        GpuParticles2D? FindFirstGpu(Node node)
-        {
+            if (node is null)
+                return;
+            if (node is GpuParticles2D gp)
+            {
+                emitters.Add(gp);
+            }
             foreach (var child in node.GetChildren())
             {
-                if (child is GpuParticles2D gp)
+                if (child is Node childNode)
                 {
-                    return gp;
-                }
-                var foundChild = FindFirstGpu(child as Node ?? null);
-                if (foundChild is not null)
-                {
-                    return foundChild;
+                    CollectEmitters(childNode);
                 }
             }
-
-            return null;
         }
 
-        var foundGpu = FindFirstGpu(instance);
-        if (foundGpu is not null)
+        CollectEmitters(instance);
+
+        if (emitters.Count == 0)
         {
-            foundGpu.Emitting = true;
-            foundGpu.Finished += instance.QueueFree;
+            // Nothing to emit in the scene; free the instance.
+            instance.QueueFree();
             return;
         }
 
-        // Nothing to emit in the scene; free the instance.
-        instance.QueueFree();
+        // Start all emitters and free the instance only after every emitter has finished
+        var remaining = emitters.Count;
+        foreach (var gp in emitters)
+        {
+            gp.Emitting = true;
+            gp.Finished += () =>
+            {
+                remaining--;
+                if (remaining <= 0)
+                {
+                    instance.QueueFree();
+                }
+            };
+        }
+
+        GD.Print($"WeaponManager: Spawned {emitters.Count} particle emitter(s) for muzzle flash at {spawnPos} (parent: {parentForFlash.Name}).");
     }
 
     /// <summary>
