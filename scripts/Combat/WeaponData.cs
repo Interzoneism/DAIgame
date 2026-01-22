@@ -230,6 +230,18 @@ public partial class WeaponData : Resource
     public Texture2D? HeldSprite { get; set; }
 
     /// <summary>
+    /// Optional material override for the held weapon sprite.
+    /// </summary>
+    [Export]
+    public Material? HeldMaterial { get; set; }
+
+    /// <summary>
+    /// Target width (in pixels) for the held sprite. 0 or -1 means use native size.
+    /// </summary>
+    [Export]
+    public float SpriteWidth { get; set; } = 0f;
+
+    /// <summary>
     /// If true, draw the held weapon under the body sprite.
     /// </summary>
     [Export]
@@ -410,6 +422,8 @@ public partial class WeaponData : Resource
             WalkAnimationName = WalkAnimationName,
             AttackAnimationName = AttackAnimationName,
             HeldSprite = HeldSprite,
+            HeldMaterial = HeldMaterial,
+            SpriteWidth = SpriteWidth,
             DrawUnderBody = DrawUnderBody,
             HoldOffset = HoldOffset,
             HeldRotationOffset = HeldRotationOffset,

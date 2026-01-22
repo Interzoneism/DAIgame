@@ -1,8 +1,9 @@
-[gd_scene load_steps=17 format=4 uid="uid://dxu03onavnehe"]
+[gd_scene load_steps=19 format=4 uid="uid://dxu03onavnehe"]
 
 [ext_resource type="PackedScene" uid="uid://bx3d1r6cnb3o1" path="res://scenes/character/Player.tscn" id="1_player"]
 [ext_resource type="PackedScene" uid="uid://qn8rxdg5vug5" path="res://scenes/character/Zombie.tscn" id="2_zombie"]
 [ext_resource type="Script" path="res://scripts/Core/TestbedController.cs" id="3_testbed"]
+[ext_resource type="Shader" uid="uid://ffx5qsnpsnos" path="res://shaders/pixelate.gdshader" id="3_v7yxo"]
 [ext_resource type="Script" path="res://scripts/World/DayNightController.cs" id="4_daynight"]
 [ext_resource type="Script" path="res://scripts/UI/GameHUD.cs" id="5_hud"]
 [ext_resource type="Script" path="res://scripts/Core/GameManager.cs" id="6_gamemanager"]
@@ -11,6 +12,10 @@
 [ext_resource type="Script" path="res://scripts/World/NavigationBuilder.cs" id="9_navbuilder"]
 [ext_resource type="Texture2D" uid="uid://8n82ii7yefm7" path="res://assets/sprites/tiles_floor.png" id="9_r6pk1"]
 [ext_resource type="PackedScene" uid="uid://dm8x2v4p6y3qr" path="res://scenes/world/Door.tscn" id="10_door"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_wt1f5"]
+shader = ExtResource("3_v7yxo")
+shader_parameter/pixel_size = 4.000000142499999
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_yyggu"]
 texture = ExtResource("7_6bnfm")
@@ -264,6 +269,19 @@ pattern_0 = SubResource("TileMapPattern_r6pk1")
 [node name="Testbed" type="Node2D"]
 script = ExtResource("3_testbed")
 ZombieScene = ExtResource("2_zombie")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+visible = false
+follow_viewport_enabled = true
+
+[node name="ColorRect" type="ColorRect" parent="CanvasLayer"]
+visible = false
+material = SubResource("ShaderMaterial_wt1f5")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 
 [node name="GameManager" type="Node" parent="."]
 script = ExtResource("6_gamemanager")

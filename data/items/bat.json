@@ -18,6 +18,7 @@
   "WalkAnimationName": "mod_walk_melee_2h",
   "AttackAnimationName": "mod_attack_melee_2h",
   "HeldSprite": "res://assets/sprites/player/mod_weapon_bat.png",
+  "SpriteWidth": 0,
   "DrawUnderBody": true,
   "HoldOffset": {
     "x": 0,

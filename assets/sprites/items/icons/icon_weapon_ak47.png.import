@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://1pvdyebfd4q7"
-path="res://.godot/imported/weapon_sniper.png-8fc9ac9ea1dbce3ade489488d2be0cd1.ctex"
+uid="uid://ds4p8vbh0blsr"
+path="res://.godot/imported/icon_weapon_ak47.png-c12810b23dede1178a4503d561f58a88.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/items/misc/weapon_sniper.png"
-dest_files=["res://.godot/imported/weapon_sniper.png-8fc9ac9ea1dbce3ade489488d2be0cd1.ctex"]
+source_file="res://assets/sprites/items/icons/icon_weapon_ak47.png"
+dest_files=["res://.godot/imported/icon_weapon_ak47.png-c12810b23dede1178a4503d561f58a88.ctex"]
 
 [params]
 
@@ -23,7 +23,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

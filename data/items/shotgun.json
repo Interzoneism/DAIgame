@@ -18,6 +18,7 @@
   "WalkAnimationName": "mod_walk_ranged_2h",
   "AttackAnimationName": "none",
   "HeldSprite": "res://assets/sprites/player/mod_weapon_shotgun.png",
+  "SpriteWidth": 0,
   "DrawUnderBody": false,
   "HoldOffset": {
     "x": -6,

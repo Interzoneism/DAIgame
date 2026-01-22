@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cwods4miptwfo"
-path="res://.godot/imported/weapon_m16.png-a7b753ef6b4a3b896db3beb02902453e.ctex"
+uid="uid://bbx8lfmaura7f"
+path="res://.godot/imported/icon_weapon_revolver.png-f8799bac14af27915691fddf40de50b8.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/items/misc/weapon_m16.png"
-dest_files=["res://.godot/imported/weapon_m16.png-a7b753ef6b4a3b896db3beb02902453e.ctex"]
+source_file="res://assets/sprites/items/icons/icon_weapon_revolver.png"
+dest_files=["res://.godot/imported/icon_weapon_revolver.png-f8799bac14af27915691fddf40de50b8.ctex"]
 
 [params]
 
@@ -23,7 +23,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

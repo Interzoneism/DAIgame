@@ -691,7 +691,7 @@ public partial class GameHUD : CanvasLayer
         _debugDirty = true;
     }
 
-    private void OnWeaponFired(WeaponData weapon)
+    private void OnWeaponFired(WeaponData weapon, Vector2 firedDirection)
     {
         _debugDirty = true;
     }

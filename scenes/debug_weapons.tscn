@@ -1,0 +1,60 @@
+[gd_scene load_steps=14 format=3 uid="uid://bxd6kprt2qvur"]
+
+[ext_resource type="Texture2D" uid="uid://cty6qegihnn8o" path="res://assets/sprites/player/mod_weapon_shotgun.png" id="1_3doaq"]
+[ext_resource type="Texture2D" uid="uid://c0f02a2h2bg87" path="res://assets/sprites/player/mod_weapon_pistol.png" id="2_drtav"]
+[ext_resource type="Texture2D" uid="uid://bruhbqt1ghg2k" path="res://assets/sprites/player/mod_weapon_uzi.png" id="3_4yubk"]
+[ext_resource type="Material" uid="uid://k3hcqae7ro84" path="res://materials/weapons/ak47.tres" id="4_p5xud"]
+[ext_resource type="Texture2D" uid="uid://ds4p8vbh0blsr" path="res://assets/sprites/items/icons/icon_weapon_ak47.png" id="5_lbsyu"]
+[ext_resource type="Texture2D" uid="uid://blpqfww4giywg" path="res://assets/sprites/items/icons/icon_weapon_m16.png" id="6_p5xud"]
+[ext_resource type="Material" uid="uid://dci730agywduh" path="res://materials/weapons/m16.tres" id="6_u4kf0"]
+[ext_resource type="Texture2D" uid="uid://bbx8lfmaura7f" path="res://assets/sprites/items/icons/icon_weapon_revolver.png" id="7_u4kf0"]
+[ext_resource type="Texture2D" uid="uid://r64n2yavvc7j" path="res://assets/sprites/items/icons/icon_weapon_shotgun_auto.png" id="8_6bhdv"]
+[ext_resource type="Material" uid="uid://c2cnmbbex46ic" path="res://materials/weapons/revolver.tres" id="8_jd2lw"]
+[ext_resource type="Texture2D" uid="uid://i7xp4scr5jsv" path="res://assets/sprites/items/icons/icon_weapon_mp5.png" id="9_drtav"]
+[ext_resource type="Material" uid="uid://fx0gcjsr7xx2" path="res://materials/weapons/shotgun_auto.tres" id="10_b8b4f"]
+[ext_resource type="Material" uid="uid://cjsiihc8kqg6h" path="res://materials/weapons/mp5.tres" id="12_rqlf0"]
+
+[node name="DebugWeapons" type="Node2D"]
+
+[node name="shotgun" type="Sprite2D" parent="."]
+position = Vector2(14, 5)
+texture = ExtResource("1_3doaq")
+
+[node name="pistol" type="Sprite2D" parent="."]
+position = Vector2(39, 17)
+texture = ExtResource("2_drtav")
+
+[node name="uzi" type="Sprite2D" parent="."]
+position = Vector2(11, -22)
+texture = ExtResource("3_4yubk")
+
+[node name="ak47" type="Sprite2D" parent="."]
+material = ExtResource("4_p5xud")
+position = Vector2(14.600021, 16.420013)
+scale = Vector2(0.07, 0.07)
+texture = ExtResource("5_lbsyu")
+
+[node name="m16" type="Sprite2D" parent="."]
+texture_filter = 1
+material = ExtResource("6_u4kf0")
+position = Vector2(42, 4)
+scale = Vector2(0.085, 0.085)
+texture = ExtResource("6_p5xud")
+
+[node name="revolver" type="Sprite2D" parent="."]
+material = ExtResource("8_jd2lw")
+position = Vector2(63.999996, 17)
+scale = Vector2(0.06, 0.06)
+texture = ExtResource("7_u4kf0")
+
+[node name="shotgun auto" type="Sprite2D" parent="."]
+material = ExtResource("10_b8b4f")
+position = Vector2(91, 6.0000005)
+scale = Vector2(0.085, 0.085)
+texture = ExtResource("8_6bhdv")
+
+[node name="mp5" type="Sprite2D" parent="."]
+material = ExtResource("12_rqlf0")
+position = Vector2(89.00001, 18)
+scale = Vector2(0.305, 0.305)
+texture = ExtResource("9_drtav")

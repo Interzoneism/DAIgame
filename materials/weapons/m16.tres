@@ -1,0 +1,11 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3 uid="uid://dci730agywduh"]
+
+[ext_resource type="Shader" uid="uid://qdq8qn03pbgh" path="res://shaders/fake3d.gdshader" id="1_6k6s4"]
+
+[resource]
+shader = ExtResource("1_6k6s4")
+shader_parameter/target_width = 16.0000007125
+shader_parameter/top_limit = 0.4610000218975
+shader_parameter/bottom_limit = 0.5350000254125
+shader_parameter/top_squish = 0.54400002584
+shader_parameter/bottom_squish = 0.6630000314925

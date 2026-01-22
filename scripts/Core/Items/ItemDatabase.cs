@@ -18,6 +18,11 @@ public static class ItemDatabase
     private const string IconPathShotgun = "res://assets/sprites/items/icons/icon_weapon_ranged_shotgun.png";
     private const string IconPathUzi = "res://assets/sprites/items/icons/icon_weapon_ranged_uzi.png";
     private const string IconPathBat = "res://assets/sprites/items/icons/icon_weapon_melee_bat.png";
+    private const string IconPathAk47 = "res://assets/sprites/items/icons/icon_weapon_ak47.png";
+    private const string IconPathM16 = "res://assets/sprites/items/icons/icon_weapon_m16.png";
+    private const string IconPathMp5 = "res://assets/sprites/items/icons/icon_weapon_mp5.png";
+    private const string IconPathRevolver = "res://assets/sprites/items/icons/icon_weapon_revolver.png";
+    private const string IconPathShotgunAuto = "res://assets/sprites/items/icons/icon_weapon_shotgun_auto.png";
 
     // Icon paths - ammo
     private const string IconPathAmmoSmall = "res://assets/sprites/items/icons/icon_ammo_small.png";
@@ -34,7 +39,12 @@ public static class ItemDatabase
         { "pistol", IconPathPistol },
         { "shotgun", IconPathShotgun },
         { "uzi", IconPathUzi },
-        { "bat", IconPathBat }
+        { "bat", IconPathBat },
+        { "ak47", IconPathAk47 },
+        { "m16", IconPathM16 },
+        { "mp5", IconPathMp5 },
+        { "revolver", IconPathRevolver },
+        { "shotgun_auto", IconPathShotgunAuto }
     };
 
     // Ammo definitions
@@ -455,6 +465,11 @@ public static class ItemDatabase
         weapon.AnimationSuffix = GetValue<string>("AnimationSuffix");
         weapon.WalkAnimationName = GetValue<string>("WalkAnimationName");
         weapon.AttackAnimationName = GetValue<string>("AttackAnimationName");
+        weapon.SpriteWidth = GetValue<float>("SpriteWidth");
+        if (Mathf.IsZeroApprox(weapon.SpriteWidth))
+        {
+            weapon.SpriteWidth = GetValue<float>("spritewidth");
+        }
         
         weapon.HoldOffset = GetVector2("HoldOffset");
         weapon.DrawUnderBody = GetValue<bool>("DrawUnderBody");
@@ -490,6 +505,16 @@ public static class ItemDatabase
             if (weapon.HeldSprite is null)
             {
                 GD.PrintErr($"ItemDatabase: Failed to load HeldSprite at '{heldSpritePath}' for '{weaponId}'");
+            }
+        }
+
+        var heldMaterialPath = GetValue<string>("HeldMaterial");
+        if (!string.IsNullOrEmpty(heldMaterialPath))
+        {
+            weapon.HeldMaterial = ResourceLoader.Load<Material>(heldMaterialPath);
+            if (weapon.HeldMaterial is null)
+            {
+                GD.PrintErr($"ItemDatabase: Failed to load HeldMaterial at '{heldMaterialPath}' for '{weaponId}'");
             }
         }
 

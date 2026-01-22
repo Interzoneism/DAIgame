@@ -19,9 +19,10 @@ public partial class WeaponManager : Node2D
 
     /// <summary>
     /// Signal emitted when the weapon fires.
+    /// Includes the actual firing direction (after spread/recoil) for visuals.
     /// </summary>
     [Signal]
-    public delegate void WeaponFiredEventHandler(WeaponData weapon);
+    public delegate void WeaponFiredEventHandler(WeaponData weapon, Vector2 fireDirection);
 
     /// <summary>
     /// Signal emitted when a melee attack is triggered (instant or swing start).
@@ -573,8 +574,8 @@ public partial class WeaponManager : Node2D
             EmitAmmoChanged();
 
             // Fire projectiles
-            FireProjectiles(origin, direction, weapon);
-            EmitSignal(SignalName.WeaponFired, weapon);
+            var fireDirection = FireProjectiles(origin, direction, weapon);
+            EmitSignal(SignalName.WeaponFired, weapon, fireDirection);
         }
 
         return true;
@@ -676,12 +677,12 @@ public partial class WeaponManager : Node2D
         IsAimingDownSights = isAiming;
     }
 
-    private void FireProjectiles(Vector2 origin, Vector2 direction, WeaponData weapon)
+    private Vector2 FireProjectiles(Vector2 origin, Vector2 direction, WeaponData weapon)
     {
         if (BulletScene is null)
         {
             GD.PrintErr("WeaponManager: BulletScene is not set!");
-            return;
+            return direction;
         }
 
         // Update recoil state before firing
@@ -692,8 +693,6 @@ public partial class WeaponManager : Node2D
         var forward = direction.Normalized();
         var perpendicular = new Vector2(-forward.Y, forward.X); // Rotated 90 degrees CCW
         var spawnPos = origin + (forward * weapon.SpawnOffsetX) + (perpendicular * weapon.SpawnOffsetY);
-
-        PlayMuzzleFlash(weapon, spawnPos, direction);
 
         var pelletCount = weapon.PelletCount;
 
@@ -706,6 +705,7 @@ public partial class WeaponManager : Node2D
         var spreadRad = Mathf.DegToRad(totalSpreadDeg);
         var baseAngle = direction.Angle();
 
+        var visualDirSum = Vector2.Zero;
         for (var i = 0; i < pelletCount; i++)
         {
             // Calculate spread angle for this pellet
@@ -722,6 +722,7 @@ public partial class WeaponManager : Node2D
             }
 
             var pelletDir = Vector2.FromAngle(pelletAngle);
+            visualDirSum += pelletDir;
 
             var bullet = BulletScene.Instantiate<Projectile>();
             GetTree().Root.AddChild(bullet);
@@ -732,7 +733,14 @@ public partial class WeaponManager : Node2D
             bullet.Initialize(pelletDir);
         }
 
+        var visualDirection = visualDirSum.LengthSquared() > 0.0001f
+            ? visualDirSum.Normalized()
+            : direction.Normalized();
+
+        PlayMuzzleFlash(weapon, spawnPos, visualDirection);
+
         GD.Print($"WeaponManager: Fired {pelletCount} projectile(s) from {weapon.DisplayName} (spread: {totalSpreadDeg:F1} deg = stability {stabilitySpreadDeg:F1} deg @ {accuracyPercent:F0}% (base {baseAccuracyPercent:F0}% - recoil {CurrentRecoilPenalty:F1}%) + weapon spread {weapon.SpreadAngle:F1} deg)");
+        return visualDirection;
     }
 
     private void PlayMuzzleFlash(WeaponData weapon, Vector2 spawnPos, Vector2 direction)

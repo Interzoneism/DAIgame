@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dqsnlmmc1qm61"
-path="res://.godot/imported/weapon_ak47.png-505af1630fe7a6aa02a51232bb07bd3b.ctex"
+uid="uid://blpqfww4giywg"
+path="res://.godot/imported/icon_weapon_m16.png-d7be25e2d62a5816b5aa634124eb08c3.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/items/misc/weapon_ak47.png"
-dest_files=["res://.godot/imported/weapon_ak47.png-505af1630fe7a6aa02a51232bb07bd3b.ctex"]
+source_file="res://assets/sprites/items/icons/icon_weapon_m16.png"
+dest_files=["res://.godot/imported/icon_weapon_m16.png-d7be25e2d62a5816b5aa634124eb08c3.ctex"]
 
 [params]
 
@@ -23,7 +23,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

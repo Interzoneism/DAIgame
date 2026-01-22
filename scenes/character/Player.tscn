@@ -1,8 +1,10 @@
-[gd_scene load_steps=12 format=3 uid="uid://bx3d1r6cnb3o1"]
+[gd_scene load_steps=15 format=3 uid="uid://bx3d1r6cnb3o1"]
 
 [ext_resource type="SpriteFrames" uid="uid://2navlis0yapa" path="res://assets/spriteframes/sprF_player.tres" id="1_4geon"]
+[ext_resource type="Shader" uid="uid://qdq8qn03pbgh" path="res://shaders/fake3d.gdshader" id="1_ucrv5"]
 [ext_resource type="Script" path="res://scripts/Player/PlayerController.cs" id="2_player"]
 [ext_resource type="SpriteFrames" uid="uid://d1g8cuxwaskqi" path="res://assets/spriteframes/sprF_playerLegs.tres" id="3_cxfou"]
+[ext_resource type="Texture2D" uid="uid://blpqfww4giywg" path="res://assets/sprites/items/icons/icon_weapon_m16.png" id="4_ksx6x"]
 [ext_resource type="Script" path="res://scripts/Combat/WeaponManager.cs" id="4_weapon"]
 [ext_resource type="PackedScene" uid="uid://b4v3jxqyqy7ym" path="res://scenes/effects/Bullet.tscn" id="5_bullet"]
 [ext_resource type="Script" path="res://scripts/Player/PlayerCamera.cs" id="7_camera"]
@@ -11,6 +13,13 @@
 [ext_resource type="Script" path="res://scripts/Core/InteractionManager.cs" id="13_interactionmanager"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_ddj42"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_718sx"]
+shader = ExtResource("1_ucrv5")
+shader_parameter/top_limit = 0.442000020995
+shader_parameter/bottom_limit = 0.530000025175
+shader_parameter/top_squish = 0.0010000000475
+shader_parameter/bottom_squish = 0.2990000142025
 
 [sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_5w7pv"]
 
@@ -31,9 +40,11 @@ shape = SubResource("CircleShape2D_ddj42")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Body"]
 sprite_frames = ExtResource("1_4geon")
-animation = &"kick"
+animation = &"mod_walk"
 
 [node name="Held" type="Sprite2D" parent="Body"]
+material = SubResource("ShaderMaterial_718sx")
+texture = ExtResource("4_ksx6x")
 centered = false
 
 [node name="Legs" type="Node2D" parent="."]

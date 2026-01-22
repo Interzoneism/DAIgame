@@ -59,6 +59,12 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 	public float HeldRecoilReturnSpeed { get; set; } = 16f;
 
 	/// <summary>
+	/// Radians per second to return held sprite rotation to aim after spread/recoil kicks.
+	/// </summary>
+	[Export]
+	public float HeldFireRotationReturnSpeed { get; set; } = 5f;
+
+	/// <summary>
 	/// Pixel-based kick amount for subtle body scale recoil on ranged fire.
 	/// </summary>
 	[Export]
@@ -212,10 +218,13 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 	private float _lastHeldAnchorRotationRad;
 	private bool _hasHeldAnchor;
 	private Vector2 _heldSpriteBaseScale = Vector2.One;
+	private float _heldSpriteWidthScale = 1f;
+	private Material? _defaultHeldMaterial;
 	private Vector2 _heldAttackOffset = Vector2.Zero;
 	private Vector2 _heldAttackScale = Vector2.One;
 	private float _heldAttackRotationRad;
 	private float _heldRotationOffsetRad;
+	private float _heldFireRotationOffsetRad;
 	private bool _usingAttackKeyframes;
 	private Vector2 _bodyBaseScale = Vector2.One;
 	private Vector2 _bodyScaleOffset = Vector2.Zero;
@@ -261,6 +270,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		if (_heldSprite is not null)
 		{
 			_heldSpriteBaseScale = _heldSprite.Scale;
+			_defaultHeldMaterial = _heldSprite.Material;
 		}
 
 		if (_bodySprite is not null)
@@ -302,14 +312,18 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 			{
 				_heldSprite.Texture = null;
 				_heldSprite.Visible = false;
+				_heldSprite.Material = _defaultHeldMaterial;
 			}
+			_heldSpriteWidthScale = 1f;
 			_heldRecoilOffset = Vector2.Zero;
+			_heldFireRotationOffsetRad = 0f;
 			_heldWiggleOffset = Vector2.Zero;
 			_hasHeldAnchor = false;
 			return;
 		}
 
 		_hasHeldAnchor = false;
+		_heldFireRotationOffsetRad = 0f;
 
 		_currentWalkAnim = weapon.GetWalkAnimation();
 		_currentAttackAnim = weapon.GetAttackAnimation();
@@ -320,7 +334,10 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 			_heldSprite.Texture = weapon.HeldSprite;
 			_heldSprite.Visible = weapon.HeldSprite is not null;
 			_heldSprite.ZIndex = weapon.DrawUnderBody ? -1 : 1;
+			_heldSprite.Material = weapon.HeldMaterial ?? _defaultHeldMaterial;
+			UpdateHeldSpriteWidthScale(weapon);
 			UpdateHeldSpritePivot();
+			UpdateHeldSpriteScale();
 			if (weapon.HeldSprite is null)
 			{
 				GD.PrintErr($"PlayerController: Weapon '{weapon.DisplayName}' has no HeldSprite assigned.");
@@ -372,7 +389,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		ApplyHeldAnchorForAnimation(_bodySprite?.Animation.ToString() ?? _currentWalkAnim);
 	}
 
-	private void OnWeaponFired(WeaponData weapon)
+	private void OnWeaponFired(WeaponData weapon, Vector2 firedDirection)
 	{
 		if (weapon.IsMelee)
 		{
@@ -380,6 +397,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		}
 
 		_heldRecoilOffset.X = Mathf.Max(_heldRecoilOffset.X - HeldRecoilKick, -HeldRecoilMax);
+		ApplyHeldFireRotationOffset(firedDirection);
 		ApplyBodyFireScaleKick();
 	}
 
@@ -1219,11 +1237,18 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 
 		if (_weaponManager?.CurrentWeapon?.SyncsWithBodyAnimation == false && _bodyNode is not null)
 		{
-			_heldSprite.Rotation = _heldBaseRotationRad + _heldRotationOffsetRad + _heldAttackRotationRad - _bodyNode.Rotation;
+			_heldSprite.Rotation = _heldBaseRotationRad
+				+ _heldRotationOffsetRad
+				+ _heldAttackRotationRad
+				+ _heldFireRotationOffsetRad
+				- _bodyNode.Rotation;
 			return;
 		}
 
-		_heldSprite.Rotation = _heldBaseRotationRad + _heldRotationOffsetRad + _heldAttackRotationRad;
+		_heldSprite.Rotation = _heldBaseRotationRad
+			+ _heldRotationOffsetRad
+			+ _heldAttackRotationRad
+			+ _heldFireRotationOffsetRad;
 	}
 
 	private void UpdateHeldAttackKeyframe()
@@ -1355,6 +1380,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 
 		UpdateHeldWiggle(delta);
 		UpdateHeldRecoil(delta);
+		UpdateHeldFireRotation(delta);
 		UpdateHeldSpritePosition();
 		UpdateHeldSpriteScale();
 		UpdateHeldSpriteRotation();
@@ -1382,6 +1408,29 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 		}
 
 		_heldRecoilOffset = _heldRecoilOffset.MoveToward(Vector2.Zero, HeldRecoilReturnSpeed * delta);
+	}
+
+	private void UpdateHeldFireRotation(float delta)
+	{
+		if (Mathf.IsZeroApprox(_heldFireRotationOffsetRad))
+		{
+			_heldFireRotationOffsetRad = 0f;
+			return;
+		}
+
+		_heldFireRotationOffsetRad = Mathf.MoveToward(_heldFireRotationOffsetRad, 0f, HeldFireRotationReturnSpeed * delta);
+	}
+
+	private void ApplyHeldFireRotationOffset(Vector2 firedDirection)
+	{
+		if (firedDirection == Vector2.Zero)
+		{
+			return;
+		}
+
+		var aimAngle = _aimDirection.Angle();
+		var firedAngle = firedDirection.Angle();
+		_heldFireRotationOffsetRad = Mathf.Wrap(firedAngle - aimAngle, -Mathf.Pi, Mathf.Pi);
 	}
 
 	private void ApplyBodyFireScaleKick()
@@ -1438,13 +1487,37 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 			return;
 		}
 
-		var scale = _heldSpriteBaseScale;
+		var scale = new Vector2(
+			_heldSpriteBaseScale.X * _heldSpriteWidthScale,
+			_heldSpriteBaseScale.Y * _heldSpriteWidthScale);
 		if (_usingAttackKeyframes)
 		{
 			scale = new Vector2(scale.X * _heldAttackScale.X, scale.Y * _heldAttackScale.Y);
 		}
 
 		_heldSprite.Scale = scale;
+	}
+
+	private void UpdateHeldSpriteWidthScale(WeaponData? weapon)
+	{
+		_heldSpriteWidthScale = 1f;
+		if (_heldSprite?.Texture is not Texture2D texture || weapon is null)
+		{
+			return;
+		}
+
+		if (weapon.SpriteWidth <= 0f)
+		{
+			return;
+		}
+
+		var textureWidth = texture.GetSize().X;
+		if (textureWidth <= 0f)
+		{
+			return;
+		}
+
+		_heldSpriteWidthScale = weapon.SpriteWidth / textureWidth;
 	}
 
 	private void UpdateHeldSpritePivot()
